@@ -46,6 +46,11 @@ export async function POST(req: NextRequest) {
     data: {
       email,
       passwordHash,
+      business: {
+        create: {
+          name: "העסק שלי",
+        },
+      },
     },
   });
 

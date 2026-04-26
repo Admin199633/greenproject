@@ -27,6 +27,24 @@
 6. Verify in your database or Prisma Studio that a new row exists in the `User` table and that `passwordHash` is a bcrypt hash rather than plain text.
 7. Log in with the new account from `/green/login` and confirm the app authenticates successfully.
 
+## Registration now creates default business context
+
+- The dashboard requires a `Business` for the signed-in user (see `requireBusiness` in `src/services/auth.service.ts`). Previously, `POST /api/auth/register` only created a `User`, so post-login the dashboard crashed with `No business associated with this account`.
+- `POST /api/auth/register` now creates the `User` and an associated `Business` in a single Prisma nested write (atomic), with default `name = "העסק שלי"`. All other `Business` fields rely on schema defaults (`taxType`, `businessType`, `vatRate`, `currency`, number prefixes, etc.).
+- Existing zod validation, duplicate-email handling, and bcrypt password hashing (12 rounds) are unchanged.
+
+### Files changed
+
+- `src/app/api/auth/register/route.ts`
+- `docs/RUNNING_SUMMARY.md`
+
+### Test steps
+
+1. From `/green/login`, click `הרשמה` and register a fresh email.
+2. In the database (or Prisma Studio) confirm a new `User` row and a matching `Business` row whose `ownerUserId` equals the new user's `id` and whose `name` is `העסק שלי`.
+3. Log in with the new credentials and confirm `/green/dashboard` loads without the `No business associated with this account` error.
+4. Try registering again with the same email and confirm the request still returns `409` with the existing duplicate-email message.
+
 ## How to test on Vercel
 
 1. Ensure Vercel environment variables are set for `DATABASE_URL`, `DIRECT_URL`, `NEXTAUTH_SECRET`, and `NEXTAUTH_URL`.
