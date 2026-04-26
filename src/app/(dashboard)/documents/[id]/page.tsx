@@ -216,50 +216,97 @@ export default async function DocumentDetailPage({ params }: PageProps) {
         <CardHeader>
           <CardTitle>פריטים</CardTitle>
         </CardHeader>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-8">#</TableHead>
-              <TableHead>תיאור</TableHead>
-              <TableHead className="text-left">כמות</TableHead>
-              <TableHead className="text-left">מחיר יחידה</TableHead>
-              <TableHead className="text-left">הנחה</TableHead>
-              <TableHead className="text-left">לפני מע״מ</TableHead>
-              <TableHead className="text-left">מע״מ</TableHead>
-              <TableHead className="text-left">סה״כ</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {doc.items.map((item) => (
-              <TableRow key={item.id}>
-                <TableCell className="text-slate-400 text-xs">
-                  {item.lineIndex + 1}
-                </TableCell>
-                <TableCell>{item.description}</TableCell>
-                <TableCell className="text-left tabular-nums">
-                  {item.quantity.toString()}
-                </TableCell>
-                <TableCell className="text-left tabular-nums">
-                  {formatCurrency(item.unitPrice.toString())}
-                </TableCell>
-                <TableCell className="text-left tabular-nums text-slate-500">
-                  {Number(item.discountAmount) > 0
-                    ? formatCurrency(item.discountAmount.toString())
-                    : "—"}
-                </TableCell>
-                <TableCell className="text-left tabular-nums">
-                  {formatCurrency(item.subtotalAmount.toString())}
-                </TableCell>
-                <TableCell className="text-left tabular-nums text-slate-500">
-                  {formatCurrency(item.taxAmount.toString())}
-                </TableCell>
-                <TableCell className="text-left tabular-nums font-medium">
+
+        {/* Mobile list */}
+        <div className="sm:hidden divide-y divide-slate-100 border-t border-slate-100">
+          {doc.items.map((item) => (
+            <div key={item.id} className="p-4 space-y-2">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-xs text-slate-400">#{item.lineIndex + 1}</p>
+                  <p className="text-sm font-medium text-slate-800 break-words">
+                    {item.description}
+                  </p>
+                </div>
+                <p className="text-base font-semibold text-slate-900 tabular-nums shrink-0">
                   {formatCurrency(item.totalAmount.toString())}
-                </TableCell>
+                </p>
+              </div>
+              <dl className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-slate-600">
+                <div className="flex justify-between">
+                  <dt className="text-slate-500">כמות</dt>
+                  <dd className="tabular-nums">{item.quantity.toString()}</dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-slate-500">מחיר יח׳</dt>
+                  <dd className="tabular-nums">{formatCurrency(item.unitPrice.toString())}</dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-slate-500">לפני מע״מ</dt>
+                  <dd className="tabular-nums">{formatCurrency(item.subtotalAmount.toString())}</dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-slate-500">מע״מ</dt>
+                  <dd className="tabular-nums">{formatCurrency(item.taxAmount.toString())}</dd>
+                </div>
+                {Number(item.discountAmount) > 0 && (
+                  <div className="flex justify-between col-span-2">
+                    <dt className="text-slate-500">הנחה</dt>
+                    <dd className="tabular-nums">{formatCurrency(item.discountAmount.toString())}</dd>
+                  </div>
+                )}
+              </dl>
+            </div>
+          ))}
+        </div>
+
+        {/* Desktop table */}
+        <div className="hidden sm:block">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-8">#</TableHead>
+                <TableHead>תיאור</TableHead>
+                <TableHead className="text-left">כמות</TableHead>
+                <TableHead className="text-left">מחיר יחידה</TableHead>
+                <TableHead className="text-left">הנחה</TableHead>
+                <TableHead className="text-left">לפני מע״מ</TableHead>
+                <TableHead className="text-left">מע״מ</TableHead>
+                <TableHead className="text-left">סה״כ</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {doc.items.map((item) => (
+                <TableRow key={item.id}>
+                  <TableCell className="text-slate-400 text-xs">
+                    {item.lineIndex + 1}
+                  </TableCell>
+                  <TableCell>{item.description}</TableCell>
+                  <TableCell className="text-left tabular-nums">
+                    {item.quantity.toString()}
+                  </TableCell>
+                  <TableCell className="text-left tabular-nums">
+                    {formatCurrency(item.unitPrice.toString())}
+                  </TableCell>
+                  <TableCell className="text-left tabular-nums text-slate-500">
+                    {Number(item.discountAmount) > 0
+                      ? formatCurrency(item.discountAmount.toString())
+                      : "—"}
+                  </TableCell>
+                  <TableCell className="text-left tabular-nums">
+                    {formatCurrency(item.subtotalAmount.toString())}
+                  </TableCell>
+                  <TableCell className="text-left tabular-nums text-slate-500">
+                    {formatCurrency(item.taxAmount.toString())}
+                  </TableCell>
+                  <TableCell className="text-left tabular-nums font-medium">
+                    {formatCurrency(item.totalAmount.toString())}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </Card>
 
       <Card>

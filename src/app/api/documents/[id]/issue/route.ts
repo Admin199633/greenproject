@@ -36,7 +36,11 @@ export async function POST(_req: Request, { params }: RouteCtx) {
       : raw.startsWith("NUMBERING_CONFLICT:")
       ? "מספור כפול — נסה שנית"
       : raw;
-    console.error("[POST /api/documents/:id/issue]", e);
-    return NextResponse.json({ error: clientMsg }, { status });
+    console.error("[documents:issue] failed", e);
+    const detail = e instanceof Error ? e.message : "";
+    return NextResponse.json(
+      status === 500 ? { error: clientMsg, detail } : { error: clientMsg },
+      { status }
+    );
   }
 }

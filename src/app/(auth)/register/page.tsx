@@ -73,10 +73,13 @@ export default function RegisterPage() {
               <Input
                 id="email"
                 type="email"
+                inputMode="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="your@email.com"
                 autoComplete="email"
+                dir="ltr"
+                className="text-left"
                 required
               />
             </div>
@@ -109,7 +112,12 @@ export default function RegisterPage() {
                 {error}
               </p>
             )}
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button
+              type="submit"
+              size="lg"
+              className="w-full"
+              disabled={loading}
+            >
               {loading ? "יוצר חשבון..." : "יצירת חשבון"}
             </Button>
             <Link

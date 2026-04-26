@@ -277,7 +277,7 @@ export default function DocumentForm({
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 pb-24 sm:pb-0">
       {/* Customer card */}
       <Card>
         <CardHeader>
@@ -300,6 +300,9 @@ export default function DocumentForm({
               <Label htmlFor="customerPhone">טלפון *</Label>
               <Input
                 id="customerPhone"
+                type="tel"
+                inputMode="tel"
+                autoComplete="tel"
                 value={customerPhone}
                 onChange={(e) => setCustomerPhone(e.target.value)}
                 placeholder="050-1234567"
@@ -312,6 +315,8 @@ export default function DocumentForm({
               <Input
                 id="customerEmail"
                 type="email"
+                inputMode="email"
+                autoComplete="email"
                 value={customerEmail}
                 onChange={(e) => setCustomerEmail(e.target.value)}
                 placeholder="name@example.com"
@@ -434,6 +439,7 @@ export default function DocumentForm({
               <Input
                 id="vatRate"
                 type="number"
+                inputMode="decimal"
                 min="0"
                 max="100"
                 step="0.1"
@@ -559,8 +565,22 @@ export default function DocumentForm({
         </p>
       )}
 
-      <div className="flex gap-3">
-        <Button onClick={handleSave} disabled={saving}>
+      {/* Spacer so the sticky bar on mobile never hides the last field */}
+      <div className="h-4 sm:h-0" aria-hidden="true" />
+
+      <div
+        className={
+          // On mobile: fixed to the bottom of the viewport (sticky action bar).
+          // On sm+: a normal in-flow row.
+          "fixed bottom-0 inset-x-0 z-30 flex gap-3 border-t border-slate-200 bg-white/95 backdrop-blur p-3 shadow-[0_-4px_12px_rgba(0,0,0,0.04)] " +
+          "sm:static sm:border-0 sm:bg-transparent sm:backdrop-blur-0 sm:p-0 sm:shadow-none"
+        }
+      >
+        <Button
+          onClick={handleSave}
+          disabled={saving}
+          className="flex-1 sm:flex-initial h-11 sm:h-9"
+        >
           {saving ? "שומר..." : "שמור טיוטה"}
         </Button>
         <Button
@@ -574,6 +594,7 @@ export default function DocumentForm({
                 : "/documents"
             )
           }
+          className="flex-1 sm:flex-initial h-11 sm:h-9"
         >
           ביטול
         </Button>

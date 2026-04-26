@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Heebo } from "next/font/google";
 import "./globals.css";
 import Providers from "@/components/Providers";
@@ -12,6 +12,12 @@ const heebo = Heebo({
 export const metadata: Metadata = {
   title: "מערכת מסמכים עסקיים",
   description: "מערכת ניהול מסמכים פיננסיים לעסק קטן",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

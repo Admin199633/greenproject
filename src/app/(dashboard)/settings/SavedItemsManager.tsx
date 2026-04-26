@@ -140,6 +140,7 @@ export default function SavedItemsManager({ items: initialItems }: Props) {
             <Input
               id="si-price"
               type="number"
+              inputMode="decimal"
               min="0"
               step="0.01"
               dir="ltr"

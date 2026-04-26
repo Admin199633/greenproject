@@ -175,6 +175,28 @@ npx prisma db push
 5. Add a second item with a description filled in — confirm description is stored and rendered.
 6. Delete an item — confirm it disappears and the row is removed from the DB.
 
+## Document issue ("הנפק") fix
+
+**Root cause:** the same `/green` basePath bug as the settings forms. `IssueDraftButton` posted to `/api/documents/${id}/issue`, which 404'd under `/green`. The button's fallback toast then displayed the generic "שגיאה בהנפקה", masking what was actually a 404.
+
+The underlying `issueDraft` service flow was already correct end-to-end with the new customer auto-create logic — it loads `doc.customer` via the relation, uses `snapshotCustomerName(doc.customer)` for the snapshot, and tolerates null `customer.address` / `customer.taxId` (the issue-time validation only requires the *business's* `name` + `taxId`, never the customer's). No service-level change was needed.
+
+### Files changed
+
+- `src/components/documents/IssueDraftButton.tsx` — fetch now uses `${API_BASE}/documents/${id}/issue`, so the request goes to `/green/api/...`.
+- `src/app/api/documents/[id]/issue/route.ts` — server log prefix is now `[documents:issue] failed`; 500 responses now also include `detail` so the underlying error is visible during debugging. The existing 400 / 409 / 422 mappings (only-drafts / numbering-conflict / VALIDATION) are unchanged and still strip the machine-readable prefixes before sending the Hebrew message to the client.
+
+### Test checklist
+
+1. Apply the prior schema changes (`npx prisma generate && npx prisma db push`) if you have not yet — the issue flow doesn't need new schema, but the surrounding flows do.
+2. Make sure the current business has `name` and `taxId` set in `/green/settings`. Without `taxId` the issue flow will (correctly) reject with `מספר עוסק / ח.פ חסר — עדכן בהגדרות העסק` — that is the expected message and confirms the wiring is right.
+3. Go to `/green/documents/new`, fill the customer card (name + phone), add a line item, save the draft.
+4. Open the newly created draft at `/green/documents/<id>`. Click `הנפק` and confirm.
+5. Expect the toast "המסמך הונפק בהצלחה". The page refreshes and the document now shows status "הונפק" with a generated number (e.g. `INV-0001` or the configured prefix).
+6. Verify in the DB: the row has `status = ISSUED`, `number` set, `issuedHash` set, and the snapshot fields (`customerName`, `customerEmail`, `customerAddress`, `customerTaxId`, `businessName`, `businessTaxId`, `businessAddress`) populated.
+7. Verify the same customer row from the draft is still the only one for `(businessId, phone)` — issuing must not create a duplicate Customer.
+8. Negative path: temporarily clear `business.taxId`, try to issue another draft, and confirm the inline button error shows the Hebrew validation message instead of the generic "שגיאה בהנפקה". Restore `taxId` afterwards.
+
 ## How to test on Vercel
 
 1. Ensure Vercel environment variables are set for `DATABASE_URL`, `DIRECT_URL`, `NEXTAUTH_SECRET`, and `NEXTAUTH_URL`.

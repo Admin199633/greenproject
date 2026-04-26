@@ -66,10 +66,13 @@ function LoginInner() {
               <Input
                 id="email"
                 type="email"
+                inputMode="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="your@email.com"
                 autoComplete="email"
+                dir="ltr"
+                className="text-left"
                 required
               />
             </div>
@@ -95,7 +98,12 @@ function LoginInner() {
                 {error}
               </p>
             )}
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button
+              type="submit"
+              size="lg"
+              className="w-full"
+              disabled={loading}
+            >
               {loading ? "מתחבר..." : "כניסה"}
             </Button>
             <Link

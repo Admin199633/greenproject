@@ -175,8 +175,20 @@ export default function BusinessSettingsForm({ defaultValues }: Props) {
       <div className="space-y-4">
         <h3 className="text-sm font-semibold text-slate-700 border-b pb-1">פרטי קשר</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {field("phone", "טלפון", { type: "tel", placeholder: "03-1234567" })}
-          {field("email", "אימייל", { type: "email", placeholder: "info@example.co.il" })}
+          {field("phone", "טלפון", {
+            type: "tel",
+            inputMode: "tel",
+            autoComplete: "tel",
+            placeholder: "03-1234567",
+          })}
+          {field("email", "אימייל", {
+            type: "email",
+            inputMode: "email",
+            autoComplete: "email",
+            placeholder: "info@example.co.il",
+            dir: "ltr",
+            className: "text-left",
+          })}
         </div>
       </div>
 
@@ -195,7 +207,7 @@ export default function BusinessSettingsForm({ defaultValues }: Props) {
       <div className="space-y-4">
         <h3 className="text-sm font-semibold text-slate-700 border-b pb-1">הגדרות חשבונאיות</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {field("vatRate", "שיעור מע״מ (%)", { type: "number", min: "0", max: "100", step: "0.01", placeholder: "17" })}
+          {field("vatRate", "שיעור מע״מ (%)", { type: "number", inputMode: "decimal", min: "0", max: "100", step: "0.01", placeholder: "17" })}
           {field("currency", "מטבע", { placeholder: "ILS" })}
         </div>
       </div>
@@ -239,7 +251,12 @@ export default function BusinessSettingsForm({ defaultValues }: Props) {
       )}
 
       <div className="pt-1">
-        <Button type="submit" disabled={isPending}>
+        <Button
+          type="submit"
+          size="lg"
+          className="w-full sm:w-auto"
+          disabled={isPending}
+        >
           {isPending ? "שומר..." : "שמור שינויים"}
         </Button>
       </div>

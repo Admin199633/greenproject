@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/Toast";
+import { API_BASE } from "@/lib/api-base";
 
 interface Props {
   documentId: string;
@@ -20,7 +21,7 @@ export default function IssueDraftButton({ documentId }: Props) {
     }
     setError(null);
     startTransition(async () => {
-      const res = await fetch(`/api/documents/${documentId}/issue`, {
+      const res = await fetch(`${API_BASE}/documents/${documentId}/issue`, {
         method: "POST",
       });
       if (!res.ok) {

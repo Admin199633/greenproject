@@ -17,7 +17,7 @@ export default function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="w-56 shrink-0 bg-white border-l border-slate-200 flex flex-col">
+    <aside className="hidden lg:flex w-56 shrink-0 bg-white border-l border-slate-200 flex-col">
       <div className="h-14 flex items-center px-4 border-b border-slate-200">
         <h1 className="text-base font-bold text-slate-800 truncate">
           מסמכים עסקיים
