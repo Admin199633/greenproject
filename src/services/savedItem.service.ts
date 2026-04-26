@@ -13,9 +13,9 @@ export async function createSavedItem(businessId: string, data: SavedItemInput) 
     data: {
       businessId,
       name: data.name.trim(),
-      description: data.description?.trim() || null,
+      description: data.description?.trim() || "",
       defaultPrice: data.defaultPrice ?? 0,
-      unit: data.unit?.trim() || null,
+      unit: data.unit?.trim() || "",
     },
   });
 }
@@ -27,13 +27,14 @@ export async function updateSavedItem(
 ) {
   const item = await db.savedItem.findFirst({ where: { id, businessId } });
   if (!item) return null;
+
   return db.savedItem.update({
     where: { id },
     data: {
       name: data.name.trim(),
-      description: data.description?.trim() || null,
+      description: data.description?.trim() || "",
       defaultPrice: data.defaultPrice ?? 0,
-      unit: data.unit?.trim() || null,
+      unit: data.unit?.trim() || "",
     },
   });
 }
@@ -41,5 +42,6 @@ export async function updateSavedItem(
 export async function deleteSavedItem(id: string, businessId: string) {
   const item = await db.savedItem.findFirst({ where: { id, businessId } });
   if (!item) return null;
+
   return db.savedItem.delete({ where: { id } });
 }
