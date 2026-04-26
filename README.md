@@ -13,7 +13,7 @@ Next.js 14 app for managing invoices, receipts, quotes, and payments. Hebrew RTL
 
 ---
 
-## Prerequisites  
+## Prerequisites  X
 
 - Node.js 18+
 - Docker (for local PostgreSQL)
