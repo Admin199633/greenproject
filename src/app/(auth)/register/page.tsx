@@ -2,32 +2,37 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { z } from "zod";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Label } from "@/components/ui/Label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 
-const loginSchema = z.object({
-  email: z.string().email("כתובת אימייל לא תקינה"),
-  password: z.string().min(6, "סיסמה חייבת להכיל לפחות 6 תווים"),
-});
+const registerSchema = z
+  .object({
+    email: z.string().email("כתובת אימייל לא תקינה"),
+    password: z.string().min(6, "הסיסמה חייבת להכיל לפחות 6 תווים"),
+    confirmPassword: z.string().min(1, "יש לאשר את הסיסמה"),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "הסיסמאות אינן תואמות",
+    path: ["confirmPassword"],
+  });
 
-export default function LoginPage() {
+export default function RegisterPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const registered = searchParams.get("registered") === "1";
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
 
-    const result = loginSchema.safeParse({ email, password });
+    const result = registerSchema.safeParse({ email, password, confirmPassword });
     if (!result.success) {
       setError(result.error.errors[0].message);
       return;
@@ -35,17 +40,19 @@ export default function LoginPage() {
 
     setLoading(true);
     try {
-      const res = await fetch("api/auth/login", {
+      const res = await fetch("api/auth/register", {
         method: "POST",
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, confirmPassword }),
         headers: { "Content-Type": "application/json" },
       });
 
       if (res.ok) {
-        router.push("/dashboard");
-      } else {
-        setError("אימייל או סיסמה שגויים");
+        router.push("/login?registered=1");
+        return;
       }
+
+      const data = (await res.json().catch(() => null)) as { error?: string } | null;
+      setError(data?.error ?? "לא ניתן היה ליצור חשבון");
     } catch {
       setError("שגיאת תקשורת, נסה שנית");
     } finally {
@@ -57,7 +64,7 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <CardTitle className="text-center text-xl">כניסה למערכת</CardTitle>
+          <CardTitle className="text-center text-xl">הרשמה למערכת</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4" noValidate>
@@ -81,28 +88,35 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                autoComplete="current-password"
+                autoComplete="new-password"
                 required
               />
             </div>
-            {registered && (
-              <p className="text-center text-sm text-green-700" role="status">
-                החשבון נוצר בהצלחה. אפשר להתחבר עכשיו.
-              </p>
-            )}
+            <div className="space-y-1.5">
+              <Label htmlFor="confirmPassword">אימות סיסמה</Label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="••••••••"
+                autoComplete="new-password"
+                required
+              />
+            </div>
             {error && (
               <p className="text-center text-sm text-red-600" role="alert">
                 {error}
               </p>
             )}
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "מתחבר..." : "כניסה"}
+              {loading ? "יוצר חשבון..." : "יצירת חשבון"}
             </Button>
             <Link
-              href="/register"
+              href="/login"
               className="block text-center text-sm text-brand-700 hover:underline"
             >
-              הרשמה
+              חזרה להתחברות
             </Link>
           </form>
         </CardContent>
