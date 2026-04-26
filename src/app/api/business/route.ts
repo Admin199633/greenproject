@@ -3,6 +3,20 @@ import { requireBusiness } from "@/services/auth.service";
 import { businessSchema } from "@/lib/validations/business";
 import { getBusiness, updateBusiness } from "@/services/business.service";
 
+function authErrorResponse(error: unknown) {
+  const message = error instanceof Error ? error.message : "";
+  if (message === "Unauthorized") {
+    return NextResponse.json({ error: "לא מורשה" }, { status: 401 });
+  }
+  if (message === "No business associated with this account") {
+    return NextResponse.json(
+      { error: "החשבון אינו משויך לעסק. צא והתחבר מחדש כדי ליצור עסק ברירת מחדל." },
+      { status: 409 }
+    );
+  }
+  return null;
+}
+
 export async function GET() {
   try {
     const business = await requireBusiness();
@@ -12,7 +26,9 @@ export async function GET() {
     }
     return NextResponse.json(data);
   } catch (error) {
-    console.error("[GET /api/business]", error);
+    const auth = authErrorResponse(error);
+    if (auth) return auth;
+    console.error("[settings:business] failed", error);
     return NextResponse.json({ error: "שגיאת שרת" }, { status: 500 });
   }
 }
@@ -33,7 +49,10 @@ export async function PATCH(req: Request) {
     const updated = await updateBusiness(business.id, parsed.data);
     return NextResponse.json(updated);
   } catch (error) {
-    console.error("[PATCH /api/business]", error);
-    return NextResponse.json({ error: "שגיאת שרת" }, { status: 500 });
+    const auth = authErrorResponse(error);
+    if (auth) return auth;
+    console.error("[settings:business] failed", error);
+    const detail = error instanceof Error ? error.message : "שגיאת שרת";
+    return NextResponse.json({ error: "שגיאת שרת", detail }, { status: 500 });
   }
 }

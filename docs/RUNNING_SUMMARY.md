@@ -88,6 +88,93 @@ If your `Customer` table contains rows with duplicate `(businessId, phone)` or `
 8. Create a third document with a brand-new phone but reusing the same email as customer #1. Confirm again that the existing customer is reused (matched by email).
 9. Try saving with an empty phone or with a malformed email — both should be rejected with field-specific errors.
 
+## Settings save fixes + customer phone-primary sync
+
+Three related fixes shipped together:
+
+### 1. Customer lookup is now phone-primary, with field sync
+
+- `resolveCustomer` (in `src/services/document.service.ts`) used to match by phone OR email. It now matches **only on `(businessId, phone)`**. Phone is required by both client and server.
+- When an existing customer is found:
+  - if the form sent a non-empty `customerName`, it updates `fullName`.
+  - if the form sent a non-empty `customerEmail`, it updates `email`.
+  - empty submitted fields keep the previously stored value.
+- When no customer is found, a new `Customer` row is created with `fullName`, `phone`, `email`, scoped to `businessId`.
+- All of this still happens inside the same `db.$transaction` as the document write, so a failed document insert rolls back the customer side too.
+- The `@@unique([businessId, email])` constraint added in the previous round was **dropped** — email is now informational, not a key, so two customers in the same business can legitimately share an email. `@@unique([businessId, phone])` is kept and remains the dedupe key.
+
+### 2. /settings business save: 404 → working
+
+- Root cause: `BusinessSettingsForm` posted to `/api/business`. With `basePath: "/green"` in `next.config.mjs`, the API is served at `/green/api/business` and the un-prefixed request 404'd. The fallback `setServerError(json.error ?? "שגיאת שרת")` showed the generic Hebrew error.
+- Fix: introduced `src/lib/api-base.ts` exporting `API_BASE = "/green/api"`. `BusinessSettingsForm` now calls `${API_BASE}/business`.
+- The PATCH route was otherwise correct — payload field names, zod schema (`businessSchema`), and Prisma `Business` model all already aligned.
+- The route also now distinguishes auth/no-business errors (401 / 409) from real server errors (500), logs failures with the prescribed prefix `console.error("[settings:business] failed", error)`, and includes the underlying message in `detail` on the 500 JSON body for easier debugging.
+
+### 3. /settings saved items save: optional description + 404 fix
+
+- Root cause was twofold:
+  1. Same basePath problem — `/api/saved-items` 404'd; toast fell back to "שגיאה בשמירה".
+  2. `description` was required on the client (`!description.trim()` blocked the submit), in zod (`.min(1)`), in the service (`data.description.trim()`), and in Prisma (`description String`). The user spec is `description: optional`.
+- Fixes:
+  - `SavedItemsManager` now uses `${API_BASE}/saved-items` for POST and DELETE; the description label is `תיאור (אופציונלי)`; the client-side blocker is replaced with `name` required + `defaultPrice` required.
+  - `savedItemSchema` now accepts an empty/missing `description`.
+  - `createSavedItem` / `updateSavedItem` write `null` when description is empty.
+  - Prisma `SavedItem.description` is now `String?`.
+  - The DELETE button uses the same `API_BASE` so item removal also works under `/green`.
+  - The POST/GET route logs failures as `[settings:saved-items] failed` and surfaces `detail` on 500 responses.
+- The DocumentForm "+ הוסף מפריט שמור" picker also tolerates a null description (it falls back to the saved item's name).
+
+### Files changed
+
+- `prisma/schema.prisma` (drop `@@unique([businessId, email])` on Customer; `SavedItem.description` → `String?`)
+- `src/lib/api-base.ts` (new — basePath-safe `API_BASE`)
+- `src/lib/validations/savedItem.ts` (description optional)
+- `src/services/savedItem.service.ts` (write null on empty description)
+- `src/services/document.service.ts` (`resolveCustomer` is phone-primary + syncs name/email)
+- `src/app/api/business/route.ts` (auth-aware error mapping; `[settings:business]` log)
+- `src/app/api/saved-items/route.ts` (auth-aware error mapping; `[settings:saved-items]` log)
+- `src/app/(dashboard)/settings/BusinessSettingsForm.tsx` (uses `API_BASE`)
+- `src/app/(dashboard)/settings/SavedItemsManager.tsx` (uses `API_BASE`; description optional)
+- `src/components/documents/DocumentForm.tsx` (uses `API_BASE`; null-safe saved-item description)
+- `src/services/document.service.test.ts` (tx mock now includes `customer.update`)
+- `docs/RUNNING_SUMMARY.md`
+
+### DB changes required
+
+After pulling these changes run:
+
+```
+npx prisma generate
+npx prisma db push
+```
+
+`db push` drops the `Customer_businessId_email_key` unique index and changes `SavedItem.description` to nullable. No data is lost; `description` rows that were previously `''` stay as `''`.
+
+### Test checklist
+
+**Customer phone-primary + sync (Part 1)**
+
+1. `/green/documents/new` — fill customer name `דנה לוי`, phone `050-1111111`, leave email empty, add a line item, save. Confirm a new `Customer` row exists with `fullName="דנה לוי"`, `phone="050-1111111"`, `email=null`.
+2. Create another draft with phone `050-1111111`, name `דנה לוי-כהן`, email `dana@example.com`. Save. In the DB the **same** customer row now has `fullName="דנה לוי-כהן"` and `email="dana@example.com"`. Both documents' `customerId` point to that single row.
+3. Create another draft with phone `050-1111111` and **empty** email. Save. The stored email stays `dana@example.com` (empty fields don't overwrite).
+4. Confirm `Customer` table has exactly one row for that `(businessId, phone)`.
+
+**/settings business save (Part 2)**
+
+1. `/green/settings`. Change name, phone, VAT rate, invoice prefix. Click שמור שינויים.
+2. Expect a green הפרטים נשמרו בהצלחה. Reload `/green/settings` — values persisted.
+3. Verify the `Business` row in Supabase matches.
+4. Force a 500 (e.g., temporarily break the schema) and verify the response body contains `{ error: "שגיאת שרת", detail: "<original message>" }` and the server log shows `[settings:business] failed ...`.
+
+**/settings saved items save (Part 3)**
+
+1. `/green/settings` → "פריטים שמורים". Add `שם=חבילת סילבר`, `מחיר=1000`, leave unit + description empty. Click הוסף פריט.
+2. Toast: "הפריט נשמר". Item appears in the list with `₪1000.00` and no description.
+3. Reload `/green/settings` — item is still there.
+4. Verify Supabase `SavedItem` has the row, `businessId` matches the current user's business, and `description IS NULL`.
+5. Add a second item with a description filled in — confirm description is stored and rendered.
+6. Delete an item — confirm it disappears and the row is removed from the DB.
+
 ## How to test on Vercel
 
 1. Ensure Vercel environment variables are set for `DATABASE_URL`, `DIRECT_URL`, `NEXTAUTH_SECRET`, and `NEXTAUTH_URL`.

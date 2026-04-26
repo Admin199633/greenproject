@@ -13,7 +13,7 @@ export async function createSavedItem(businessId: string, data: SavedItemInput) 
     data: {
       businessId,
       name: data.name.trim(),
-      description: data.description.trim(),
+      description: data.description?.trim() || null,
       defaultPrice: data.defaultPrice ?? 0,
       unit: data.unit?.trim() || null,
     },
@@ -31,7 +31,7 @@ export async function updateSavedItem(
     where: { id },
     data: {
       name: data.name.trim(),
-      description: data.description.trim(),
+      description: data.description?.trim() || null,
       defaultPrice: data.defaultPrice ?? 0,
       unit: data.unit?.trim() || null,
     },

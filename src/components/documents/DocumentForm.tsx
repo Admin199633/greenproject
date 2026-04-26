@@ -16,13 +16,14 @@ import {
   DOCUMENT_TYPES,
   DOCUMENT_TYPE_LABELS,
 } from "@/lib/validations/document";
+import { API_BASE } from "@/lib/api-base";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface SavedItemOption {
   id: string;
   name: string;
-  description: string;
+  description: string | null;
   defaultPrice: string | number;
   unit: string | null;
 }
@@ -242,7 +243,9 @@ export default function DocumentForm({
     };
 
     const url =
-      mode === "create" ? "/api/documents" : `/api/documents/${documentId}`;
+      mode === "create"
+        ? `${API_BASE}/documents`
+        : `${API_BASE}/documents/${documentId}`;
     const method = mode === "create" ? "POST" : "PATCH";
 
     try {
@@ -463,7 +466,7 @@ export default function DocumentForm({
                     ...prev,
                     {
                       key: generateKey(),
-                      description: picked.description,
+                      description: picked.description ?? picked.name,
                       quantity: "1",
                       unitPrice: String(Number(picked.defaultPrice)),
                       discountAmount: "0",

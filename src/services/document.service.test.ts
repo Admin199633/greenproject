@@ -292,6 +292,7 @@ describe("document.service", () => {
         customer: {
           findFirst: jest.fn().mockResolvedValue({ id: "cust-1" }),
           create: jest.fn(),
+          update: jest.fn().mockResolvedValue({ id: "cust-1" }),
         },
       };
 

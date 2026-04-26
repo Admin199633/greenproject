@@ -6,8 +6,10 @@ import type { SaveDraftInput } from "@/lib/validations/document";
 type Tx = Prisma.TransactionClient;
 
 /**
- * Find an existing customer for this business by phone or email, or create a new one.
- * Phone match is preferred over email when both are supplied and resolve to different rows.
+ * Resolve a customer by phone (the primary lookup key, scoped to businessId).
+ * If found, sync fullName/email from the form when they are non-empty
+ * (empty submitted fields keep the existing stored value).
+ * If not found, create a new Customer.
  */
 async function resolveCustomer(
   tx: Tx,
@@ -19,17 +21,16 @@ async function resolveCustomer(
   const name = input.customerName.trim();
 
   const existing = await tx.customer.findFirst({
-    where: {
-      businessId,
-      OR: [
-        { phone },
-        ...(email ? [{ email }] : []),
-      ],
-    },
-    orderBy: { createdAt: "asc" },
+    where: { businessId, phone },
   });
 
-  if (existing) return existing;
+  if (existing) {
+    const updates: { fullName?: string; email?: string } = {};
+    if (name) updates.fullName = name;
+    if (email) updates.email = email;
+    if (Object.keys(updates).length === 0) return existing;
+    return tx.customer.update({ where: { id: existing.id }, data: updates });
+  }
 
   return tx.customer.create({
     data: {

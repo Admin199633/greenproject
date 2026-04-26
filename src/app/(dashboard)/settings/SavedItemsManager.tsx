@@ -6,11 +6,12 @@ import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Label } from "@/components/ui/Label";
 import { useToast } from "@/components/ui/Toast";
+import { API_BASE } from "@/lib/api-base";
 
 interface SavedItem {
   id: string;
   name: string;
-  description: string;
+  description: string | null;
   defaultPrice: string | number;
   unit: string | null;
 }
@@ -32,19 +33,23 @@ export default function SavedItemsManager({ items: initialItems }: Props) {
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim() || !description.trim()) {
-      setFormError("שם ותיאור חובה");
+    if (!name.trim()) {
+      setFormError("שם חובה");
+      return;
+    }
+    if (!defaultPrice.trim() || Number.isNaN(parseFloat(defaultPrice))) {
+      setFormError("מחיר חובה");
       return;
     }
     setFormError(null);
     setSaving(true);
     try {
-      const res = await fetch("/api/saved-items", {
+      const res = await fetch(`${API_BASE}/saved-items`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: name.trim(),
-          description: description.trim(),
+          description: description.trim() || undefined,
           defaultPrice: parseFloat(defaultPrice) || 0,
           unit: unit.trim() || undefined,
         }),
@@ -69,7 +74,7 @@ export default function SavedItemsManager({ items: initialItems }: Props) {
 
   async function handleDelete(id: string) {
     if (!confirm("למחוק פריט זה?")) return;
-    const res = await fetch(`/api/saved-items/${id}`, { method: "DELETE" });
+    const res = await fetch(`${API_BASE}/saved-items/${id}`, { method: "DELETE" });
     if (!res.ok && res.status !== 204) {
       toast("שגיאה במחיקה", "error");
       return;
@@ -93,7 +98,11 @@ export default function SavedItemsManager({ items: initialItems }: Props) {
             >
               <div className="min-w-0">
                 <p className="font-medium text-sm text-slate-800">{item.name}</p>
-                <p className="text-xs text-slate-500 whitespace-pre-wrap line-clamp-2">{item.description}</p>
+                {item.description && (
+                  <p className="text-xs text-slate-500 whitespace-pre-wrap line-clamp-2">
+                    {item.description}
+                  </p>
+                )}
               </div>
               <div className="flex items-center gap-4 shrink-0">
                 <span className="text-sm tabular-nums text-slate-700">
@@ -152,7 +161,7 @@ export default function SavedItemsManager({ items: initialItems }: Props) {
           </div>
         </div>
         <div className="space-y-1">
-          <Label htmlFor="si-description">תיאור</Label>
+          <Label htmlFor="si-description">תיאור (אופציונלי)</Label>
           <textarea
             id="si-description"
             rows={3}

@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Label } from "@/components/ui/Label";
 import type { BusinessFormValues } from "@/lib/validations/business";
+import { API_BASE } from "@/lib/api-base";
 
 interface Props {
   defaultValues: {
@@ -83,7 +84,7 @@ export default function BusinessSettingsForm({ defaultValues }: Props) {
       sendIssueNotificationEmail: getCheckbox("sendIssueNotificationEmail"),
     };
 
-    const res = await fetch("/api/business", {
+    const res = await fetch(`${API_BASE}/business`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
