@@ -1,0 +1,41 @@
+import { z } from "zod";
+
+const optionalStr = (max: number, label: string) =>
+  z.string().max(max, `${label} ארוך מדי`).optional().or(z.literal(""));
+
+export const businessSchema = z.object({
+  name: z.string().min(1, "שם עסק חובה").max(200, "שם עסק ארוך מדי"),
+  taxId: z.string().min(1, "מספר עוסק / ח.פ חובה").max(20, "מספר עוסק ארוך מדי"),
+  address: optionalStr(500, "כתובת"),
+  city: optionalStr(100, "עיר"),
+  postalCode: optionalStr(20, "מיקוד"),
+  country: optionalStr(100, "מדינה"),
+  phone: optionalStr(30, "טלפון"),
+  email: z
+    .string()
+    .email("כתובת אימייל לא תקינה")
+    .optional()
+    .or(z.literal("")),
+  taxType: z
+    .enum(["osek_murshe", "osek_patur", "chevra"])
+    .optional()
+    .default("osek_murshe"),
+  businessType: z
+    .enum(["general", "photography", "contractor", "consulting", "retail", "other"])
+    .optional()
+    .default("general"),
+  vatRate: z.coerce
+    .number()
+    .min(0, "שיעור מע״מ לא יכול להיות שלילי")
+    .max(100, "שיעור מע״מ לא תקין")
+    .optional()
+    .default(17),
+  currency: optionalStr(10, "מטבע"),
+  invoiceNumberPrefix: optionalStr(20, "קידומת חשבונית"),
+  receiptNumberPrefix: optionalStr(20, "קידומת קבלה"),
+  quoteNumberPrefix: optionalStr(20, "קידומת הצעת מחיר"),
+  invoiceReceiptNumberPrefix: optionalStr(20, "קידומת חשבונית קבלה"),
+  sendIssueNotificationEmail: z.boolean().optional().default(false),
+});
+
+export type BusinessFormValues = z.infer<typeof businessSchema>;

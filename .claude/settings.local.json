@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run:*)",
+      "Bash(npx prisma:*)",
+      "Bash(npm test:*)",
+      "Bash(npx tsc:*)",
+      "Bash(xargs grep:*)",
+      "Bash(npm install:*)",
+      "Bash(grep -E \"400.*woff$|700.*woff$\")",
+      "Bash(python3 -c ':*)",
+      "Bash(python3:*)",
+      "Bash(curl -L --max-time 30 -o \"C:/Users/liorsw/Downloads/green/public/fonts/Heebo-Regular.ttf\" \"https://github.com/googlefonts/heebo/raw/main/fonts/ttf/Heebo-Regular.ttf\")",
+      "Bash(curl -L --max-time 30 -o \"C:/Users/liorsw/Downloads/green/public/fonts/Heebo-Bold.ttf\" \"https://github.com/googlefonts/heebo/raw/main/fonts/ttf/Heebo-Bold.ttf\")",
+      "Bash(curl -L --max-time 30 -H \"User-Agent: Mozilla/5.0\" -o \"C:/Users/liorsw/Downloads/green/public/fonts/Heebo-Regular.ttf\" \"https://raw.githubusercontent.com/googlefonts/heebo/main/fonts/ttf/Heebo-Regular.ttf\")",
+      "Bash(curl -L --max-time 30 -o \"C:/Users/liorsw/Downloads/green/public/fonts/Heebo-Regular.ttf\" \"https://raw.githubusercontent.com/google/fonts/main/ofl/heebo/Heebo-Regular.ttf\")",
+      "Bash(curl -s --max-time 15 \"https://api.github.com/repos/google/fonts/contents/ofl/heebo\")",
+      "Bash(curl -L --max-time 60 -o \"C:/Users/liorsw/Downloads/green/public/fonts/Heebo.ttf\" \"https://raw.githubusercontent.com/google/fonts/main/ofl/heebo/Heebo%5Bwght%5D.ttf\")",
+      "Bash(node:*)",
+      "Bash(curl -s \"https://fonts.googleapis.com/css2?family=Heebo:wght@400;700\" -H \"User-Agent: Mozilla/5.0 \\(compatible; Node.js\\)\")",
+      "Bash(curl -L --max-time 30 -o \"C:/Users/liorsw/Downloads/green/public/fonts/Heebo-Regular.ttf\" \"https://fonts.gstatic.com/s/heebo/v28/NGSpv5_NC0k9P_v6ZUCbLRAHxK1EiSyccg.ttf\")",
+      "Bash(curl -L --max-time 30 -o \"C:/Users/liorsw/Downloads/green/public/fonts/Heebo-Bold.ttf\" \"https://fonts.gstatic.com/s/heebo/v28/NGSpv5_NC0k9P_v6ZUCbLRAHxK1Ebiuccg.ttf\")"
+    ]
+  }
+}

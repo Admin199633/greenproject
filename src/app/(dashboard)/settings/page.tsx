@@ -1,0 +1,68 @@
+import { requireBusiness } from "@/services/auth.service";
+import { getBusiness } from "@/services/business.service";
+import { listSavedItems } from "@/services/savedItem.service";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
+import BusinessSettingsForm from "./BusinessSettingsForm";
+import SavedItemsManager from "./SavedItemsManager";
+
+export default async function SettingsPage() {
+  const session = await requireBusiness();
+  const [business, savedItems] = await Promise.all([
+    getBusiness(session.id),
+    listSavedItems(session.id),
+  ]);
+
+  if (!business) {
+    return <p className="text-red-600">לא נמצא עסק</p>;
+  }
+
+  return (
+    <div className="max-w-2xl space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-slate-800">הגדרות עסק</h1>
+        <p className="text-sm text-slate-500 mt-1">עדכון פרטי העסק שיופיעו במסמכים</p>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>פרטי העסק</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <BusinessSettingsForm
+            defaultValues={{
+              name: business.name,
+              taxId: business.taxId,
+              address: business.address,
+              city: business.city,
+              postalCode: business.postalCode,
+              country: business.country ?? "IL",
+              phone: business.phone,
+              email: business.email,
+              taxType: (business.taxType as "osek_murshe" | "osek_patur" | "chevra") ?? "osek_murshe",
+              businessType: (business.businessType as "general" | "photography" | "contractor" | "consulting" | "retail" | "other") ?? "general",
+              vatRate: Number(business.vatRate) ?? 17,
+              currency: business.currency ?? "ILS",
+              invoiceNumberPrefix: business.invoiceNumberPrefix ?? "INV-",
+              receiptNumberPrefix: business.receiptNumberPrefix ?? "REC-",
+              quoteNumberPrefix: business.quoteNumberPrefix ?? "QUO-",
+              invoiceReceiptNumberPrefix: business.invoiceReceiptNumberPrefix ?? "INVR-",
+              sendIssueNotificationEmail: business.sendIssueNotificationEmail ?? false,
+            }}
+          />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>פריטים שמורים</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-slate-500 mb-4">
+            פריטים שמורים מאפשרים מילוי מהיר של שורות במסמכים.
+          </p>
+          <SavedItemsManager items={savedItems.map((i) => ({ ...i, defaultPrice: i.defaultPrice.toString() }))} />
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
