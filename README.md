@@ -76,7 +76,8 @@ Seed creates:
 
 | Variable | Description | Example |
 |---|---|---|
-| `DATABASE_URL` | PostgreSQL connection string | `postgresql://postgres:password@localhost:5432/green_db` |
+| `DATABASE_URL` | Runtime DB URL. On Vercel with Supabase, use Supavisor transaction mode on port `6543` and add `?pgbouncer=true` | `postgresql://postgres.PROJECT_REF:password@aws-0-REGION.pooler.supabase.com:6543/postgres?pgbouncer=true` |
+| `DIRECT_URL` | Direct DB URL for Prisma migrations | `postgresql://postgres:password@db.PROJECT_REF.supabase.co:5432/postgres` |
 | `NEXTAUTH_SECRET` | JWT signing secret (generate with `openssl rand -base64 32`) | `abc123...` |
 | `NEXTAUTH_URL` | Full URL of the app | `http://localhost:3000` |
 
