@@ -72,7 +72,14 @@ export const saveDraftSchema = z.object({
   type: z.enum(DOCUMENT_TYPES, {
     errorMap: () => ({ message: "סוג מסמך לא תקין" }),
   }),
-  customerId: z.string().min(1, "יש לבחור לקוח"),
+  customerName: z.string().trim().min(1, "שם לקוח חובה").max(200, "שם לקוח ארוך מדי"),
+  customerPhone: z.string().trim().min(1, "מספר טלפון חובה").max(30, "מספר טלפון ארוך מדי"),
+  customerEmail: z
+    .string()
+    .trim()
+    .email("כתובת אימייל לא תקינה")
+    .optional()
+    .or(z.literal("")),
   issueDate: z.string().optional().or(z.literal("")),
   dueDate: z.string().optional().or(z.literal("")),
   notes: z.string().max(2000).optional().or(z.literal("")),

@@ -19,12 +19,6 @@ import {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface CustomerOption {
-  id: string;
-  fullName: string | null;
-  companyName: string | null;
-}
-
 interface SavedItemOption {
   id: string;
   name: string;
@@ -35,7 +29,9 @@ interface SavedItemOption {
 
 export interface DocumentFormDefaults {
   type: string;
-  customerId: string;
+  customerName: string;
+  customerPhone: string;
+  customerEmail: string;
   issueDate: string;
   dueDate: string;
   notes: string;
@@ -54,7 +50,6 @@ export interface DocumentFormDefaults {
 interface Props {
   mode: "create" | "edit";
   documentId?: string;
-  customers: CustomerOption[];
   savedItems?: SavedItemOption[];
   businessType?: string;
   isExempt?: boolean;
@@ -77,16 +72,11 @@ function emptyItem(): ItemRow {
   };
 }
 
-function customerLabel(c: CustomerOption) {
-  return c.companyName || c.fullName || "—";
-}
-
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function DocumentForm({
   mode,
   documentId,
-  customers,
   savedItems = [],
   businessType = "general",
   isExempt = false,
@@ -96,7 +86,15 @@ export default function DocumentForm({
 
   // ── Header state ──────────────────────────────────────────────────────────
   const [type, setType] = useState(defaultValues?.type ?? "INVOICE");
-  const [customerId, setCustomerId] = useState(defaultValues?.customerId ?? "");
+  const [customerName, setCustomerName] = useState(
+    defaultValues?.customerName ?? ""
+  );
+  const [customerPhone, setCustomerPhone] = useState(
+    defaultValues?.customerPhone ?? ""
+  );
+  const [customerEmail, setCustomerEmail] = useState(
+    defaultValues?.customerEmail ?? ""
+  );
   const today = new Date().toISOString().slice(0, 10);
   const [issueDate, setIssueDate] = useState(defaultValues?.issueDate ?? today);
   // dueDateTouched tracks whether the user has manually changed dueDate
@@ -179,8 +177,20 @@ export default function DocumentForm({
   async function handleSave() {
     setError(null);
 
-    if (!customerId) {
-      setError("יש לבחור לקוח");
+    const trimmedName = customerName.trim();
+    const trimmedPhone = customerPhone.trim();
+    const trimmedEmail = customerEmail.trim();
+
+    if (!trimmedName) {
+      setError("יש להזין שם לקוח");
+      return;
+    }
+    if (!trimmedPhone) {
+      setError("יש להזין מספר טלפון של הלקוח");
+      return;
+    }
+    if (trimmedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      setError("כתובת אימייל לא תקינה");
       return;
     }
 
@@ -197,7 +207,9 @@ export default function DocumentForm({
 
     const payload = {
       type,
-      customerId,
+      customerName: trimmedName,
+      customerPhone: trimmedPhone,
+      customerEmail: trimmedEmail || undefined,
       issueDate: issueDate || undefined,
       dueDate: dueDate || undefined,
       notes: notes || undefined,
@@ -263,6 +275,51 @@ export default function DocumentForm({
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-5">
+      {/* Customer card */}
+      <Card>
+        <CardHeader>
+          <CardTitle>פרטי הלקוח</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="customerName">שם הלקוח *</Label>
+              <Input
+                id="customerName"
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                placeholder="ישראל ישראלי"
+                maxLength={200}
+                required
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="customerPhone">טלפון *</Label>
+              <Input
+                id="customerPhone"
+                value={customerPhone}
+                onChange={(e) => setCustomerPhone(e.target.value)}
+                placeholder="050-1234567"
+                maxLength={30}
+                required
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="customerEmail">אימייל</Label>
+              <Input
+                id="customerEmail"
+                type="email"
+                value={customerEmail}
+                onChange={(e) => setCustomerEmail(e.target.value)}
+                placeholder="name@example.com"
+                dir="ltr"
+                className="text-left"
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Header card */}
       <Card>
         <CardHeader>
@@ -280,22 +337,6 @@ export default function DocumentForm({
                 {DOCUMENT_TYPES.map((t) => (
                   <option key={t} value={t}>
                     {DOCUMENT_TYPE_LABELS[t]}
-                  </option>
-                ))}
-              </Select>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="customerId">לקוח</Label>
-              <Select
-                id="customerId"
-                value={customerId}
-                onChange={(e) => setCustomerId(e.target.value)}
-              >
-                <option value="">— בחר לקוח —</option>
-                {customers.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {customerLabel(c)}
                   </option>
                 ))}
               </Select>

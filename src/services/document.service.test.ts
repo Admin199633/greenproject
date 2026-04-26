@@ -16,7 +16,9 @@ import {
 } from "@/services/document.service";
 
 const draftInput = {
-  customerId: "cust-1",
+  customerName: "Dana Levi",
+  customerPhone: "050-1234567",
+  customerEmail: "dana@example.com",
   type: "INVOICE" as const,
   issueDate: "2026-04-09",
   dueDate: "2026-04-20",
@@ -287,11 +289,17 @@ describe("document.service", () => {
         document: {
           update: jest.fn().mockResolvedValue({ id: "doc-1" }),
         },
+        customer: {
+          findFirst: jest.fn().mockResolvedValue({ id: "cust-1" }),
+          create: jest.fn(),
+        },
       };
 
       mockDb.document.findFirst.mockResolvedValue({
         id: "doc-1",
         status: "DRAFT",
+        customerId: "cust-1",
+        sourceDocumentId: null,
       });
       mockDb.$transaction.mockImplementation(async (callback) => callback(tx as never));
 

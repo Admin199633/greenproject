@@ -99,6 +99,8 @@ model Customer {
   documents Document[]
   payments  Payment[]
 
+  @@unique([businessId, phone])
+  @@unique([businessId, email])
   @@index([businessId])
 }
 

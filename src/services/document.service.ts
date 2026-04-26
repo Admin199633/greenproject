@@ -3,6 +3,44 @@ import { DocumentStatus, DocumentType, Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import type { SaveDraftInput } from "@/lib/validations/document";
 
+type Tx = Prisma.TransactionClient;
+
+/**
+ * Find an existing customer for this business by phone or email, or create a new one.
+ * Phone match is preferred over email when both are supplied and resolve to different rows.
+ */
+async function resolveCustomer(
+  tx: Tx,
+  businessId: string,
+  input: { customerName: string; customerPhone: string; customerEmail?: string }
+) {
+  const phone = input.customerPhone.trim();
+  const email = input.customerEmail?.trim() || null;
+  const name = input.customerName.trim();
+
+  const existing = await tx.customer.findFirst({
+    where: {
+      businessId,
+      OR: [
+        { phone },
+        ...(email ? [{ email }] : []),
+      ],
+    },
+    orderBy: { createdAt: "asc" },
+  });
+
+  if (existing) return existing;
+
+  return tx.customer.create({
+    data: {
+      businessId,
+      fullName: name,
+      phone,
+      email,
+    },
+  });
+}
+
 // ─── Number formatting ────────────────────────────────────────────────────────
 
 const DEFAULT_NUMBER_PREFIX: Record<DocumentType, string> = {
@@ -219,10 +257,12 @@ export async function createDraft(
   data: SaveDraftInput
 ) {
   return db.$transaction(async (tx) => {
+    const customer = await resolveCustomer(tx, businessId, data);
+
     const doc = await tx.document.create({
       data: {
         businessId,
-        customerId: data.customerId,
+        customerId: customer.id,
         type: data.type as DocumentType,
         status: "DRAFT",
         number: null,
@@ -293,18 +333,20 @@ export async function updateDraft(
   if (existing.sourceDocumentId && data.type !== "CREDIT_NOTE") {
     throw new Error("Credit note type cannot be changed");
   }
-  if (existing.sourceDocumentId && data.customerId !== existing.customerId) {
-    throw new Error("Credit note customer cannot be changed");
-  }
 
   return db.$transaction(async (tx) => {
+    const customer = await resolveCustomer(tx, businessId, data);
+    if (existing.sourceDocumentId && customer.id !== existing.customerId) {
+      throw new Error("Credit note customer cannot be changed");
+    }
+
     // Replace all items atomically
     await tx.documentItem.deleteMany({ where: { documentId: id } });
 
     await tx.document.update({
       where: { id },
       data: {
-        customerId: data.customerId,
+        customerId: customer.id,
         type: data.type as DocumentType,
         issueDate: data.issueDate ? new Date(data.issueDate) : null,
         dueDate: data.dueDate ? new Date(data.dueDate) : null,

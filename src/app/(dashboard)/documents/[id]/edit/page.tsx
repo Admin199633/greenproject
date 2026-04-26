@@ -2,7 +2,6 @@ import { notFound, redirect } from "next/navigation";
 import { requireBusiness } from "@/services/auth.service";
 import { getDocumentById } from "@/services/document.service";
 import { getDisplayName } from "@/services/customer.service";
-import { listCustomers } from "@/services/customer.service";
 import { listSavedItems } from "@/services/savedItem.service";
 import { getBusiness } from "@/services/business.service";
 import DocumentForm, {
@@ -17,9 +16,8 @@ export default async function EditDocumentPage({ params }: PageProps) {
   const { id } = await params;
   const business = await requireBusiness();
 
-  const [doc, customers, savedItems, fullBusiness] = await Promise.all([
+  const [doc, savedItems, fullBusiness] = await Promise.all([
     getDocumentById(id, business.id),
-    listCustomers(business.id),
     listSavedItems(business.id),
     getBusiness(business.id),
   ]);
@@ -30,7 +28,9 @@ export default async function EditDocumentPage({ params }: PageProps) {
 
   const defaults: DocumentFormDefaults = {
     type: doc.type,
-    customerId: doc.customerId,
+    customerName: doc.customer.fullName ?? doc.customer.companyName ?? "",
+    customerPhone: doc.customer.phone ?? "",
+    customerEmail: doc.customer.email ?? "",
     issueDate: doc.issueDate
       ? doc.issueDate.toISOString().slice(0, 10)
       : "",
@@ -64,7 +64,6 @@ export default async function EditDocumentPage({ params }: PageProps) {
       <DocumentForm
         mode="edit"
         documentId={doc.id}
-        customers={customers}
         savedItems={savedItems.map((i) => ({ ...i, defaultPrice: i.defaultPrice.toString() }))}
         businessType={fullBusiness?.businessType ?? "general"}
         isExempt={fullBusiness?.taxType === "osek_patur"}
