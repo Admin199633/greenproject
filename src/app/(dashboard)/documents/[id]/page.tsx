@@ -208,7 +208,7 @@ export default async function DocumentDetailPage({ params }: PageProps) {
             </div>
           )}
 
-          {(doc.sourceDocument || doc.relatedDocument || doc.creditNote) && (
+          {(doc.sourceDocument || doc.creditNote) && (
             <div className="mt-4 space-y-2 border-t border-slate-100 pt-4 text-sm">
               {doc.sourceDocument && (
                 <p className="text-slate-600">
@@ -218,17 +218,6 @@ export default async function DocumentDetailPage({ params }: PageProps) {
                     className="text-brand-600 hover:text-brand-800"
                   >
                     {doc.sourceDocument.number ?? "ללא מספר"}
-                  </Link>
-                </p>
-              )}
-              {doc.relatedDocument && (
-                <p className="text-slate-600">
-                  מסמך קשור:{" "}
-                  <Link
-                    href={`/documents/${doc.relatedDocument.id}`}
-                    className="text-brand-600 hover:text-brand-800"
-                  >
-                    {doc.relatedDocument.number ?? doc.relatedDocument.id}
                   </Link>
                 </p>
               )}

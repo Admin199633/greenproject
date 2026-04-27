@@ -88,7 +88,6 @@ function formatDocumentNumber(prefix: string, n: number) {
 
 function buildReceiptDraftData(data: SaveDraftInput) {
   return {
-    relatedDocumentId: data.relatedDocumentId?.trim() || null,
     receiptAmountReceived: data.receiptAmountReceived || null,
     receiptPaymentMethod: data.receiptPaymentMethod ?? null,
     receiptPaymentReference: data.receiptPaymentReference?.trim() || null,
@@ -132,7 +131,6 @@ function computeIssuedDocumentHash(params: {
   businessName: string | null;
   businessTaxId: string | null;
   businessAddress: string | null;
-  relatedDocumentId?: string | null;
   receiptAmountReceived?: Prisma.Decimal | null;
   receiptPaymentMethod?: string | null;
   receiptPaymentReference?: string | null;
@@ -172,7 +170,6 @@ function computeIssuedDocumentHash(params: {
       taxId: params.businessTaxId,
       address: params.businessAddress,
     },
-    relatedDocumentId: params.relatedDocumentId ?? null,
     receipt: {
       amountReceived: params.receiptAmountReceived?.toString() ?? null,
       paymentMethod: params.receiptPaymentMethod ?? null,
@@ -281,9 +278,6 @@ export async function getDocumentById(id: string, businessId: string) {
     include: {
       customer: true,
       sourceDocument: {
-        select: { id: true, number: true, type: true, status: true },
-      },
-      relatedDocument: {
         select: { id: true, number: true, type: true, status: true },
       },
       creditNote: {
@@ -516,7 +510,6 @@ export async function issueDraft(
         businessName: finalBusinessName,
         businessTaxId: finalBusinessTaxId,
         businessAddress: finalBusinessAddress,
-        relatedDocumentId: doc.relatedDocumentId,
         receiptAmountReceived: doc.receiptAmountReceived,
         receiptPaymentMethod: doc.receiptPaymentMethod,
         receiptPaymentReference: doc.receiptPaymentReference,
@@ -686,7 +679,6 @@ export async function duplicateDocument(id: string, businessId: string) {
         eventLocation: source.eventLocation,
         eventHours: source.eventHours,
         eventTime: source.eventTime,
-        relatedDocumentId: source.relatedDocumentId,
         receiptAmountReceived: source.receiptAmountReceived,
         receiptPaymentMethod: source.receiptPaymentMethod,
         receiptPaymentReference: source.receiptPaymentReference,
@@ -750,7 +742,6 @@ export async function createDocumentFromQuote(
       data: {
         businessId,
         customerId: source.customerId,
-        relatedDocumentId: source.id,
         type: targetType,
         status: DocumentStatus.DRAFT,
         number: null,

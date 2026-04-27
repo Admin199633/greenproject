@@ -668,12 +668,6 @@ type PdfDocumentData = PrismaDocument & {
   items: DocumentItem[];
   customer: Customer;
   payments: Payment[];
-  relatedDocument?: {
-    id: string;
-    number: string | null;
-    type: string;
-    status: string;
-  } | null;
 };
 
 interface BuildPdfInput {
@@ -1093,12 +1087,6 @@ function LegacyPage({ business, document }: BuildPdfInput) {
           <Field label="סטטוס" value={statusLabel} />
           <Field label="תאריך הנפקה" value={formatDate(document.issueDate)} />
           <Field label="תאריך תשלום" value={formatDate(document.dueDate)} />
-          {document.relatedDocument ? (
-            <Field
-              label="מסמך קשור"
-              value={document.relatedDocument.number ?? document.relatedDocument.id}
-            />
-          ) : null}
         </View>
       </View>
 

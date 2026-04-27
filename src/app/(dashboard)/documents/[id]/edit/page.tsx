@@ -38,7 +38,6 @@ export default async function EditDocumentPage({ params }: PageProps) {
         eventLocation: true,
         eventHours: true,
         eventTime: true,
-        relatedDocumentId: true,
         receiptAmountReceived: true,
         receiptPaymentMethod: true,
         receiptPaymentReference: true,
@@ -100,7 +99,6 @@ export default async function EditDocumentPage({ params }: PageProps) {
     eventLocation: doc.eventLocation ?? "",
     eventHours: doc.eventHours ? doc.eventHours.toString() : "",
     eventTime: doc.eventTime ?? "",
-    relatedDocumentId: doc.relatedDocumentId ?? "",
     receiptAmountReceived: doc.receiptAmountReceived
       ? doc.receiptAmountReceived.toString()
       : "",

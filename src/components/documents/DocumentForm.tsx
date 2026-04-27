@@ -48,7 +48,6 @@ export interface DocumentFormDefaults {
   eventLocation?: string;
   eventHours?: string;
   eventTime?: string;
-  relatedDocumentId?: string;
   receiptAmountReceived?: string;
   receiptPaymentMethod?: PaymentMethod;
   receiptPaymentReference?: string;
@@ -128,7 +127,6 @@ export default function DocumentForm({
   const [eventHours, setEventHours] = useState(defaultValues?.eventHours ?? "");
   const [eventTime, setEventTime] = useState(defaultValues?.eventTime ?? "");
 
-  const [relatedDocumentId] = useState(defaultValues?.relatedDocumentId ?? "");
   const [receiptAmountReceived, setReceiptAmountReceived] = useState(
     defaultValues?.receiptAmountReceived ?? ""
   );
@@ -273,7 +271,6 @@ export default function DocumentForm({
         eventHours: eventHours ? parseFloat(eventHours) : undefined,
         eventTime: eventTime || undefined,
       }),
-      relatedDocumentId: relatedDocumentId || undefined,
       receiptAmountReceived:
         showReceiptFields && receiptAmountReceived
           ? Number(receiptAmountReceived).toFixed(2)

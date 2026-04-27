@@ -86,7 +86,6 @@ const baseSaveDraftSchema = z.object({
   eventLocation: z.string().max(500).optional().or(z.literal("")),
   eventHours: z.coerce.number().min(0).max(999).optional(),
   eventTime: z.string().max(10).optional().or(z.literal("")),
-  relatedDocumentId: z.string().optional().or(z.literal("")),
   receiptAmountReceived: posMoneyStr.optional().or(z.literal("")),
   receiptPaymentMethod: paymentMethodSchema.optional(),
   receiptPaymentReference: z.string().max(200).optional().or(z.literal("")),

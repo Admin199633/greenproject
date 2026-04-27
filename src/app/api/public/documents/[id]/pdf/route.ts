@@ -39,9 +39,6 @@ export async function GET(req: Request, { params }: RouteCtx) {
         sourceDocument: {
           select: { id: true, number: true, type: true, status: true },
         },
-        relatedDocument: {
-          select: { id: true, number: true, type: true, status: true },
-        },
         creditNote: {
           select: { id: true, number: true, type: true, status: true },
         },
