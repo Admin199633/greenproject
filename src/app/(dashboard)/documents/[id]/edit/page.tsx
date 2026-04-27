@@ -1,9 +1,9 @@
 import { notFound, redirect } from "next/navigation";
 import { requireBusiness } from "@/services/auth.service";
-import { getDocumentById } from "@/services/document.service";
 import { getDisplayName } from "@/services/customer.service";
 import { listSavedItems } from "@/services/savedItem.service";
 import { getBusiness } from "@/services/business.service";
+import { db } from "@/lib/db";
 import DocumentForm, {
   type DocumentFormDefaults,
 } from "@/components/documents/DocumentForm";
@@ -17,7 +17,26 @@ export default async function EditDocumentPage({ params }: PageProps) {
   const business = await requireBusiness();
 
   const [doc, savedItems, fullBusiness] = await Promise.all([
-    getDocumentById(id, business.id),
+    db.document.findFirst({
+      where: {
+        id,
+        businessId: business.id,
+        status: { not: "DELETED" },
+      },
+      include: {
+        customer: {
+          select: {
+            fullName: true,
+            companyName: true,
+            phone: true,
+            email: true,
+          },
+        },
+        items: {
+          orderBy: { lineIndex: "asc" },
+        },
+      },
+    }),
     listSavedItems(business.id),
     getBusiness(business.id),
   ]);
