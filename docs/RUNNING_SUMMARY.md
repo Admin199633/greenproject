@@ -367,3 +367,73 @@ Next.js `Link` automatically prepends the `/green` `basePath`, so the rendered U
   6. Tap the FAB → tap the dimmed backdrop → sheet closes; press `Esc` → sheet closes; reopen → tap the `×` → sheet closes.
   7. Confirm body scroll is locked while open and unlocked after close (try scrolling the page behind the sheet).
   8. Existing dashboard navigation (sidebar links, `+ מסמך חדש` button on `/documents`) still works unchanged.
+
+## Quote (הצעת מחיר) PDF — premium redesign
+
+`renderDocumentPdf` now branches on `document.type`. `QUOTE` documents render through a new `<QuotePage>` layout designed from scratch for a clean, premium feel; every other document type (`INVOICE`, `RECEIPT`, `INVOICE_RECEIPT`, `CREDIT_NOTE`) keeps the existing `<LegacyPage>` layout unchanged so invoices and receipts still look the way the business issued them historically.
+
+This is presentation-only — pricing, totals, snapshot fields, hashing, and the issue/cancel flows are untouched.
+
+### What the new quote layout looks like
+
+- **Top accent bar** — full-bleed 6 pt brand-blue strip across the page edge. Single visual anchor; no heavy borders elsewhere.
+- **Header (RTL-correct)**
+  - Right (RTL primary): logo (when present), business name (18 pt bold), tax-id, address, phone, email — stacked, right-aligned, in muted slate.
+  - Left: small `QUOTE` eyebrow, then the big 30 pt brand-blue **הצעת מחיר** title, then the document number in bold, the issue date, and *בתוקף עד* dueDate when set.
+- **Hairline rule** under the header — a single 1 pt `#e2e8f0` line replaces the legacy heavy 1 pt slate-300 border.
+- **Customer + event cards** — two side-by-side cards on a soft `#eef2ff` (brand-tint) background, 6 pt rounded corners, `פרטי לקוח` eyebrow on one, `פרטי האירוע` on the other. The event card is omitted entirely if no event fields are set.
+  - Customer fields: שם לקוח · אימייל · טלפון (exactly the three the spec asked for; phone falls back to `customer.phone` since there is no snapshot for it).
+  - Event fields: מיקום · תאריך · שעה.
+- **Items list** — borderless layout with thin dividers between rows, 2 pt brand-blue underline on the column headers. Each row shows:
+  - שם השירות (bold first line of `description`) + optional muted detail body for additional `description` lines.
+  - כמות (centered).
+  - מחיר (left-aligned, muted).
+  - סה"כ (left-aligned, bold).
+- **Totals** — right-aligned 260-pt block. Subtotal and VAT (with the actual rate %) are shown as muted rows; the final row is a brand-blue pill with white 16 pt bold **סה"כ לתשלום** + total. Hidden VAT row when `vatRateSnapshot` is 0 (e.g. `osek_patur`).
+- **Notes** — only rendered when `document.notes` is non-empty after sanitisation. Sits under a hairline rule with its own eyebrow.
+- **Footer** — fixed page footer with business name + page X / Y.
+
+### Encoding fix — the "Ž=" smear
+
+The reported `Ž=` artefact (and any similar garbled-glyph reports) traces back to invisible Bidi/zero-width control codepoints that get pasted into descriptions/names from web pages, Google Docs, or Office. Heebo can't render some of them and `@react-pdf/renderer` falls back to visible glyph stand-ins.
+
+A new `sanitizeText(value)` helper at the top of `src/lib/pdf/document-pdf.tsx` strips the codepoint ranges below (codepoints listed by hex value to keep this doc free of the same hidden chars it's documenting):
+
+- C0 controls `U+0000–U+0008`, `U+000B`, `U+000C`, `U+000E–U+001F` — `\t` (`U+0009`) and `\n` (`U+000A`) are preserved so multi-line item descriptions still split correctly
+- DEL + C1 controls `U+007F–U+009F`
+- Soft hyphen `U+00AD`
+- Zero-width range + LRM/RLM `U+200B–U+200F`
+- Explicit Bidi controls `U+202A–U+202E`
+- Word-joiner family `U+2060–U+2064`
+- Bidi isolate controls `U+2066–U+2069`
+- BOM / ZWNBSP `U+FEFF`
+
+`sanitizeText` is run on every user-supplied string in **both** the new quote layout *and* the legacy layout (business/customer fields, item descriptions, payment references, notes). The currency / date / percent / quantity formatters were already locked to `en-US`/`en-GB` to avoid Bidi marks; that remains unchanged. The `₪` glyph (`U+20AA`) is in Heebo's character set and continues to render correctly.
+
+### RTL correctness
+
+`@react-pdf/renderer` does not honour `direction: "rtl"` at the page level — every visual ordering must come from `flexDirection: "row-reverse"` and `textAlign: "right"`. The new quote layout follows that throughout: the header `headerRight` truly is the visual right under RTL because of `row-reverse`; card rows reverse the same way; item rows place the description on the right; totals are anchored to the right via `justifyContent: "flex-start"` on a `row-reverse` wrapper.
+
+### Files changed
+
+- `src/lib/pdf/document-pdf.tsx`
+  - new `sanitizeText` / `safeOrDash` / `splitDescription` helpers
+  - new `quote` `StyleSheet` (premium design tokens)
+  - new `QuotePage` component
+  - existing layout extracted to a `LegacyPage` component
+  - `PdfTemplate` now branches on `document.type === "QUOTE"`
+  - sanitisation applied to user-supplied strings in the legacy layout too
+- `docs/RUNNING_SUMMARY.md`
+
+### Verification
+
+- `npx tsc --noEmit` — clean.
+- `npm run build` — clean.
+- `npm test` — 43/43 passing (no PDF-renderer tests existed; service tests still green).
+- Manual smoke test plan:
+  1. Issue a `QUOTE` (`הצעת מחיר`) draft with: customer (name + email + phone), `eventLocation` / `eventDate` / `eventTime` filled in, two items where the second item's `description` has multiple lines, a non-zero VAT rate, and a `notes` body. Issue it, then `GET /api/documents/<id>/pdf` — confirm the new layout: brand bar at top, big title on the left, business + logo on the right, two soft-blue cards, items list with bold first line + muted body for the multi-line item, brand-pill final total, notes block.
+  2. Issue a `QUOTE` with no event fields and a single short-description item — confirm the event card disappears entirely and the items list still renders cleanly.
+  3. Issue a `QUOTE` for an `osek_patur` business (vat = 0) — confirm the VAT row is hidden in the totals and the final pill still shows the correct total.
+  4. Paste a description with hidden Bidi marks (e.g. copy from a Hebrew web page) — confirm the rendered PDF shows clean text with no `Ž=` / boxes / extra whitespace.
+  5. Issue a `RECEIPT` and an `INVOICE` — confirm those still render through the legacy layout and look exactly as before this change.
+  6. Confirm Hebrew RTL ordering everywhere (cards, item rows, totals, footer).
