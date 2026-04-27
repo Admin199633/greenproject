@@ -51,6 +51,19 @@ export default async function EditDocumentPage({ params }: PageProps) {
     eventLocation: doc.eventLocation ?? "",
     eventHours: doc.eventHours ? doc.eventHours.toString() : "",
     eventTime: doc.eventTime ?? "",
+    relatedDocumentId: doc.relatedDocumentId ?? "",
+    receiptAmountReceived: doc.receiptAmountReceived
+      ? doc.receiptAmountReceived.toString()
+      : "",
+    receiptPaymentMethod: (doc.receiptPaymentMethod as DocumentFormDefaults["receiptPaymentMethod"]) ?? undefined,
+    receiptPaymentReference: doc.receiptPaymentReference ?? "",
+    receiptCheckNumber: doc.receiptCheckNumber ?? "",
+    receiptCheckBank: doc.receiptCheckBank ?? "",
+    receiptCheckBranch: doc.receiptCheckBranch ?? "",
+    receiptCheckAccount: doc.receiptCheckAccount ?? "",
+    receiptCheckDueDate: doc.receiptCheckDueDate
+      ? doc.receiptCheckDueDate.toISOString().slice(0, 10)
+      : "",
   };
 
   return (

@@ -10,7 +10,7 @@ export async function POST(_req: Request, { params }: RouteCtx) {
   try {
     const { id } = await params;
     const session = await requireBusiness();
-    const doc = await issueDraft(id, session.id);
+    const doc = await issueDraft(id, session.id, session.ownerUserId);
     auditDocumentIssue(doc, session.ownerUserId);
 
     void sendDocumentEmail(doc.id, session.id, { audience: "issue" }).catch((error) => {

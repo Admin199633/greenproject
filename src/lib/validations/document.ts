@@ -1,6 +1,5 @@
 import { z } from "zod";
-
-// ─── Enums ────────────────────────────────────────────────────────────────────
+import { PAYMENT_METHODS } from "@/lib/validations/payment";
 
 export const DOCUMENT_TYPES = [
   "QUOTE",
@@ -37,22 +36,11 @@ export const DOCUMENT_STATUS_LABELS: Record<DocumentStatusValue, string> = {
   CANCELLED: "בוטל",
 };
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-/** Accepts a numeric string with up to 2dp — allows empty for optional fields */
-const moneyStr = z
-  .string()
-  .regex(/^-?\d+(\.\d{1,2})?$/, "סכום לא תקין");
-
+const moneyStr = z.string().regex(/^-?\d+(\.\d{1,2})?$/, "סכום לא תקין");
 const posMoneyStr = z
   .string()
   .regex(/^\d+(\.\d{1,2})?$/, "סכום חייב להיות אפס או חיובי");
-
-const qtyStr = z
-  .string()
-  .regex(/^\d+(\.\d{1,3})?$/, "כמות לא תקינה");
-
-// ─── Item schema ─────────────────────────────────────────────────────────────
+const qtyStr = z.string().regex(/^\d+(\.\d{1,3})?$/, "כמות לא תקינה");
 
 export const documentItemSchema = z.object({
   lineIndex: z.number().int().min(0),
@@ -66,9 +54,11 @@ export const documentItemSchema = z.object({
   totalAmount: moneyStr,
 });
 
-// ─── Document schema ──────────────────────────────────────────────────────────
+const paymentMethodSchema = z.enum(PAYMENT_METHODS, {
+  errorMap: () => ({ message: "אמצעי תשלום לא תקין" }),
+});
 
-export const saveDraftSchema = z.object({
+const baseSaveDraftSchema = z.object({
   type: z.enum(DOCUMENT_TYPES, {
     errorMap: () => ({ message: "סוג מסמך לא תקין" }),
   }),
@@ -91,14 +81,45 @@ export const saveDraftSchema = z.object({
   taxAmount: moneyStr,
   totalAmount: moneyStr,
   amountDue: moneyStr,
-  items: z
-    .array(documentItemSchema)
-    .min(1, "יש להוסיף לפחות פריט אחד"),
-  // Photography quote fields
+  items: z.array(documentItemSchema).min(1, "יש להוסיף לפחות פריט אחד"),
   eventDate: z.string().optional().or(z.literal("")),
   eventLocation: z.string().max(500).optional().or(z.literal("")),
   eventHours: z.coerce.number().min(0).max(999).optional(),
   eventTime: z.string().max(10).optional().or(z.literal("")),
+  relatedDocumentId: z.string().optional().or(z.literal("")),
+  receiptAmountReceived: posMoneyStr.optional().or(z.literal("")),
+  receiptPaymentMethod: paymentMethodSchema.optional(),
+  receiptPaymentReference: z.string().max(200).optional().or(z.literal("")),
+  receiptCheckNumber: z.string().max(100).optional().or(z.literal("")),
+  receiptCheckBank: z.string().max(100).optional().or(z.literal("")),
+  receiptCheckBranch: z.string().max(100).optional().or(z.literal("")),
+  receiptCheckAccount: z.string().max(100).optional().or(z.literal("")),
+  receiptCheckDueDate: z.string().optional().or(z.literal("")),
+});
+
+export const saveDraftSchema = baseSaveDraftSchema.superRefine((data, ctx) => {
+  const isReceiptType =
+    data.type === "RECEIPT" || data.type === "INVOICE_RECEIPT";
+
+  if (!isReceiptType) {
+    return;
+  }
+
+  if (!data.receiptAmountReceived) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "סכום שהתקבל הוא שדה חובה",
+      path: ["receiptAmountReceived"],
+    });
+  }
+
+  if (!data.receiptPaymentMethod) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "אמצעי תשלום הוא שדה חובה",
+      path: ["receiptPaymentMethod"],
+    });
+  }
 });
 
 export type SaveDraftInput = z.infer<typeof saveDraftSchema>;

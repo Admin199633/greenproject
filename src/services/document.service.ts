@@ -6,12 +6,6 @@ import type { SaveDraftInput } from "@/lib/validations/document";
 
 type Tx = Prisma.TransactionClient;
 
-/**
- * Resolve a customer by phone (the primary lookup key, scoped to businessId).
- * If found, sync fullName/email from the form when they are non-empty
- * (empty submitted fields keep the existing stored value).
- * If not found, create a new Customer.
- */
 async function resolveCustomer(
   tx: Tx,
   businessId: string,
@@ -43,7 +37,19 @@ async function resolveCustomer(
   });
 }
 
-// ─── Number formatting ────────────────────────────────────────────────────────
+function isReceiptType(type: DocumentType | string) {
+  return type === DocumentType.RECEIPT || type === DocumentType.INVOICE_RECEIPT;
+}
+
+function snapshotCustomerName(customer: {
+  fullName: string | null;
+  companyName: string | null;
+}) {
+  if (customer.companyName && customer.fullName) {
+    return `${customer.companyName} - ${customer.fullName}`;
+  }
+  return customer.companyName || customer.fullName || "";
+}
 
 const DEFAULT_NUMBER_PREFIX: Record<DocumentType, string> = {
   QUOTE: "QUO-",
@@ -61,7 +67,7 @@ function getDocumentPrefix(
     quoteNumberPrefix?: string | null;
     invoiceReceiptNumberPrefix?: string | null;
   }
-): string {
+) {
   switch (type) {
     case DocumentType.INVOICE:
       return business.invoiceNumberPrefix || DEFAULT_NUMBER_PREFIX.INVOICE;
@@ -76,28 +82,44 @@ function getDocumentPrefix(
   }
 }
 
-function formatDocumentNumber(prefix: string, n: number): string {
+function formatDocumentNumber(prefix: string, n: number) {
   return `${prefix}${String(n).padStart(4, "0")}`;
 }
 
-/** Snapshot-safe display name: "CompanyName — FullName" or whichever is set. */
-function snapshotCustomerName(
-  customer: { fullName: string | null; companyName: string | null }
-): string {
-  const { fullName, companyName } = customer;
-  if (companyName && fullName) return `${companyName} — ${fullName}`;
-  return companyName || fullName || "";
+function buildReceiptDraftData(data: SaveDraftInput) {
+  return {
+    relatedDocumentId: data.relatedDocumentId?.trim() || null,
+    receiptAmountReceived: data.receiptAmountReceived || null,
+    receiptPaymentMethod: data.receiptPaymentMethod ?? null,
+    receiptPaymentReference: data.receiptPaymentReference?.trim() || null,
+    receiptCheckNumber: data.receiptCheckNumber?.trim() || null,
+    receiptCheckBank: data.receiptCheckBank?.trim() || null,
+    receiptCheckBranch: data.receiptCheckBranch?.trim() || null,
+    receiptCheckAccount: data.receiptCheckAccount?.trim() || null,
+    receiptCheckDueDate: data.receiptCheckDueDate
+      ? new Date(data.receiptCheckDueDate)
+      : null,
+  };
 }
 
-// ─── Issued document hash ─────────────────────────────────────────────────────
+function buildDocumentItemsData(
+  documentId: string,
+  items: SaveDraftInput["items"]
+) {
+  return items.map((item) => ({
+    documentId,
+    lineIndex: item.lineIndex,
+    description: item.description,
+    quantity: item.quantity,
+    unitPrice: item.unitPrice,
+    discountAmount: item.discountAmount,
+    subtotalAmount: item.subtotalAmount,
+    taxRate: item.taxRate,
+    taxAmount: item.taxAmount,
+    totalAmount: item.totalAmount,
+  }));
+}
 
-/**
- * Compute a stable SHA256 hash for an issued document.
- *
- * Only immutable issued-document data is included — the hash reflects the
- * document exactly as it was issued and must never be recomputed after issue.
- * Decimal values are serialised as strings to avoid floating-point ambiguity.
- */
 function computeIssuedDocumentHash(params: {
   type: string;
   number: string;
@@ -110,6 +132,15 @@ function computeIssuedDocumentHash(params: {
   businessName: string | null;
   businessTaxId: string | null;
   businessAddress: string | null;
+  relatedDocumentId?: string | null;
+  receiptAmountReceived?: Prisma.Decimal | null;
+  receiptPaymentMethod?: string | null;
+  receiptPaymentReference?: string | null;
+  receiptCheckNumber?: string | null;
+  receiptCheckBank?: string | null;
+  receiptCheckBranch?: string | null;
+  receiptCheckAccount?: string | null;
+  receiptCheckDueDate?: Date | null;
   items: Array<{
     lineIndex: number;
     description: string;
@@ -124,7 +155,7 @@ function computeIssuedDocumentHash(params: {
   subtotalAmount: Prisma.Decimal;
   taxAmount: Prisma.Decimal;
   totalAmount: Prisma.Decimal;
-}): string {
+}) {
   const canonical = {
     type: params.type,
     number: params.number,
@@ -140,6 +171,17 @@ function computeIssuedDocumentHash(params: {
       name: params.businessName,
       taxId: params.businessTaxId,
       address: params.businessAddress,
+    },
+    relatedDocumentId: params.relatedDocumentId ?? null,
+    receipt: {
+      amountReceived: params.receiptAmountReceived?.toString() ?? null,
+      paymentMethod: params.receiptPaymentMethod ?? null,
+      paymentReference: params.receiptPaymentReference ?? null,
+      checkNumber: params.receiptCheckNumber ?? null,
+      checkBank: params.receiptCheckBank ?? null,
+      checkBranch: params.receiptCheckBranch ?? null,
+      checkAccount: params.receiptCheckAccount ?? null,
+      checkDueDate: params.receiptCheckDueDate?.toISOString() ?? null,
     },
     items: params.items.map((item) => ({
       lineIndex: item.lineIndex,
@@ -158,10 +200,9 @@ function computeIssuedDocumentHash(params: {
       totalAmount: params.totalAmount.toString(),
     },
   };
+
   return createHash("sha256").update(JSON.stringify(canonical)).digest("hex");
 }
-
-// ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface ListDocumentsFilters {
   type?: string;
@@ -183,56 +224,55 @@ const CREDIT_NOTE_SOURCE_STATUSES = new Set<DocumentStatus>([
   DocumentStatus.PAID,
 ]);
 
-// ─── Queries ─────────────────────────────────────────────────────────────────
-
 export async function listDocuments(
   businessId: string,
   filters: ListDocumentsFilters = {}
 ) {
   const { type, customerId, status, dateFrom, dateTo, search } = filters;
 
-  return perf("document.listDocuments", () => db.document.findMany({
-    where: {
-      businessId,
-      // Exclude soft-deleted documents from all list views
-      status: status
-        ? (status as DocumentStatus)
-        : { not: DocumentStatus.DELETED },
-      ...(type ? { type: type as DocumentType } : {}),
-      ...(customerId ? { customerId } : {}),
-      ...(dateFrom || dateTo
-        ? {
-            issueDate: {
-              ...(dateFrom ? { gte: new Date(dateFrom) } : {}),
-              ...(dateTo ? { lte: new Date(dateTo) } : {}),
-            },
-          }
-        : {}),
-      ...(search?.trim()
-        ? {
-            OR: [
-              { number: { contains: search, mode: "insensitive" } },
-              {
-                customer: {
-                  fullName: { contains: search, mode: "insensitive" },
-                },
+  return perf("document.listDocuments", () =>
+    db.document.findMany({
+      where: {
+        businessId,
+        status: status
+          ? (status as DocumentStatus)
+          : { not: DocumentStatus.DELETED },
+        ...(type ? { type: type as DocumentType } : {}),
+        ...(customerId ? { customerId } : {}),
+        ...(dateFrom || dateTo
+          ? {
+              issueDate: {
+                ...(dateFrom ? { gte: new Date(dateFrom) } : {}),
+                ...(dateTo ? { lte: new Date(dateTo) } : {}),
               },
-              {
-                customer: {
-                  companyName: { contains: search, mode: "insensitive" },
+            }
+          : {}),
+        ...(search?.trim()
+          ? {
+              OR: [
+                { number: { contains: search, mode: "insensitive" } },
+                {
+                  customer: {
+                    fullName: { contains: search, mode: "insensitive" },
+                  },
                 },
-              },
-            ],
-          }
-        : {}),
-    },
-    include: {
-      customer: {
-        select: { id: true, fullName: true, companyName: true },
+                {
+                  customer: {
+                    companyName: { contains: search, mode: "insensitive" },
+                  },
+                },
+              ],
+            }
+          : {}),
       },
-    },
-    orderBy: { createdAt: "desc" },
-  }));
+      include: {
+        customer: {
+          select: { id: true, fullName: true, companyName: true },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    })
+  );
 }
 
 export async function getDocumentById(id: string, businessId: string) {
@@ -241,6 +281,9 @@ export async function getDocumentById(id: string, businessId: string) {
     include: {
       customer: true,
       sourceDocument: {
+        select: { id: true, number: true, type: true, status: true },
+      },
+      relatedDocument: {
         select: { id: true, number: true, type: true, status: true },
       },
       creditNote: {
@@ -252,12 +295,7 @@ export async function getDocumentById(id: string, businessId: string) {
   });
 }
 
-// ─── Mutations ───────────────────────────────────────────────────────────────
-
-export async function createDraft(
-  businessId: string,
-  data: SaveDraftInput
-) {
+export async function createDraft(businessId: string, data: SaveDraftInput) {
   return db.$transaction(async (tx) => {
     const customer = await resolveCustomer(tx, businessId, data);
 
@@ -266,7 +304,7 @@ export async function createDraft(
         businessId,
         customerId: customer.id,
         type: data.type as DocumentType,
-        status: "DRAFT",
+        status: DocumentStatus.DRAFT,
         number: null,
         issueDate: data.issueDate ? new Date(data.issueDate) : null,
         dueDate: data.dueDate ? new Date(data.dueDate) : null,
@@ -280,12 +318,11 @@ export async function createDraft(
         totalAmount: data.totalAmount,
         amountPaid: "0",
         amountDue: data.amountDue,
-        // Photography quote fields
         eventDate: data.eventDate ? new Date(data.eventDate) : null,
         eventLocation: data.eventLocation?.trim() || null,
         eventHours: data.eventHours != null ? String(data.eventHours) : null,
         eventTime: data.eventTime?.trim() || null,
-        // Snapshot fields are null for drafts — populated at issue time (Phase 3B)
+        ...buildReceiptDraftData(data),
         customerName: null,
         customerEmail: null,
         customerAddress: null,
@@ -297,18 +334,7 @@ export async function createDraft(
     });
 
     await tx.documentItem.createMany({
-      data: data.items.map((item) => ({
-        documentId: doc.id,
-        lineIndex: item.lineIndex,
-        description: item.description,
-        quantity: item.quantity,
-        unitPrice: item.unitPrice,
-        discountAmount: item.discountAmount,
-        subtotalAmount: item.subtotalAmount,
-        taxRate: item.taxRate,
-        taxAmount: item.taxAmount,
-        totalAmount: item.totalAmount,
-      })),
+      data: buildDocumentItemsData(doc.id, data.items),
     });
 
     return doc;
@@ -330,8 +356,11 @@ export async function updateDraft(
     },
   });
   if (!existing) throw new Error("Document not found");
-  if (existing.status !== "DRAFT")
-    throw new Error(`IMMUTABLE:Document status is ${existing.status} — only DRAFT documents can be edited`);
+  if (existing.status !== "DRAFT") {
+    throw new Error(
+      `IMMUTABLE:Document status is ${existing.status} ג€” only DRAFT documents can be edited`
+    );
+  }
   if (existing.sourceDocumentId && data.type !== "CREDIT_NOTE") {
     throw new Error("Credit note type cannot be changed");
   }
@@ -342,7 +371,6 @@ export async function updateDraft(
       throw new Error("Credit note customer cannot be changed");
     }
 
-    // Replace all items atomically
     await tx.documentItem.deleteMany({ where: { documentId: id } });
 
     await tx.document.update({
@@ -361,27 +389,16 @@ export async function updateDraft(
         taxAmount: data.taxAmount,
         totalAmount: data.totalAmount,
         amountDue: data.amountDue,
-        // Photography quote fields
         eventDate: data.eventDate ? new Date(data.eventDate) : null,
         eventLocation: data.eventLocation?.trim() || null,
         eventHours: data.eventHours != null ? String(data.eventHours) : null,
         eventTime: data.eventTime?.trim() || null,
+        ...buildReceiptDraftData(data),
       },
     });
 
     await tx.documentItem.createMany({
-      data: data.items.map((item) => ({
-        documentId: id,
-        lineIndex: item.lineIndex,
-        description: item.description,
-        quantity: item.quantity,
-        unitPrice: item.unitPrice,
-        discountAmount: item.discountAmount,
-        subtotalAmount: item.subtotalAmount,
-        taxRate: item.taxRate,
-        taxAmount: item.taxAmount,
-        totalAmount: item.totalAmount,
-      })),
+      data: buildDocumentItemsData(id, data.items),
     });
   });
 }
@@ -389,15 +406,20 @@ export async function updateDraft(
 export async function deleteDraft(id: string, businessId: string) {
   const existing = await db.document.findFirst({ where: { id, businessId } });
   if (!existing) throw new Error("Document not found");
-  if (existing.status !== "DRAFT")
-    throw new Error(`IMMUTABLE:Document status is ${existing.status} — only DRAFT documents can be deleted`);
+  if (existing.status !== "DRAFT") {
+    throw new Error(
+      `IMMUTABLE:Document status is ${existing.status} ג€” only DRAFT documents can be deleted`
+    );
+  }
 
-  // Soft-delete: mark as DELETED so historical data is preserved.
   await db.document.update({ where: { id }, data: { status: "DELETED" } });
 }
 
-export async function issueDraft(id: string, businessId: string) {
-  // Load document + customer + items together; verify ownership in the same query
+export async function issueDraft(
+  id: string,
+  businessId: string,
+  createdByUserId: string
+) {
   const doc = await db.document.findFirst({
     where: { id, businessId },
     include: { customer: true, items: { orderBy: { lineIndex: "asc" } } },
@@ -405,19 +427,17 @@ export async function issueDraft(id: string, businessId: string) {
   if (!doc) throw new Error("Document not found");
   if (doc.status !== "DRAFT") throw new Error("Only drafts can be issued");
 
-  // Load business for snapshot (already verified above via businessId)
   const business = await db.business.findUniqueOrThrow({
     where: { id: businessId },
   });
 
-  // ── Required fields validation (Task 4) ──────────────────────────────────
   const validationErrors: string[] = [];
 
   if (!business.name?.trim()) {
-    validationErrors.push("שם העסק חסר — עדכן בהגדרות העסק");
+    validationErrors.push("שם העסק חסר - עדכן בהגדרות העסק");
   }
   if (!business.taxId?.trim()) {
-    validationErrors.push("מספר עוסק / ח.פ חסר — עדכן בהגדרות העסק");
+    validationErrors.push("מספר עוסק / ח.פ חסר - עדכן בהגדרות העסק");
   }
   if (!doc.issueDate) {
     validationErrors.push("תאריך המסמך חסר");
@@ -426,7 +446,6 @@ export async function issueDraft(id: string, businessId: string) {
     validationErrors.push("המסמך חייב לכלול לפחות פריט אחד");
   }
 
-  // ── VAT rule (Task 2.2): authorized business must have VAT on invoices ────
   const isAuthorizedBusiness =
     business.taxType === "osek_murshe" || business.taxType === "chevra";
   const isInvoiceType =
@@ -434,8 +453,24 @@ export async function issueDraft(id: string, businessId: string) {
     doc.type === DocumentType.INVOICE_RECEIPT;
   if (isAuthorizedBusiness && isInvoiceType && Number(doc.vatRateSnapshot) <= 0) {
     validationErrors.push(
-      "עסק מורשה (עוסק מורשה / חברה) חייב לכלול מע״מ בחשבונית — בדוק את שיעור המע״מ בהגדרות העסק"
+      'עסק מורשה (עוסק מורשה / חברה) חייב לכלול מע"מ בחשבונית - בדוק את שיעור המע"מ בהגדרות העסק'
     );
+  }
+
+  if (isReceiptType(doc.type)) {
+    const receiptAmount = doc.receiptAmountReceived
+      ? new Prisma.Decimal(doc.receiptAmountReceived)
+      : null;
+
+    if (!receiptAmount || receiptAmount.lte(0)) {
+      validationErrors.push("בקבלה חייבים להזין סכום שהתקבל");
+    }
+    if (!doc.receiptPaymentMethod?.trim()) {
+      validationErrors.push("בקבלה חייבים לבחור אמצעי תשלום");
+    }
+    if (receiptAmount && receiptAmount.greaterThan(doc.totalAmount)) {
+      validationErrors.push("סכום שהתקבל לא יכול לעלות על סכום המסמך");
+    }
   }
 
   if (validationErrors.length > 0) {
@@ -444,14 +479,12 @@ export async function issueDraft(id: string, businessId: string) {
 
   try {
     return await db.$transaction(async (tx) => {
-      // 1. Re-check status inside the transaction to prevent double-issue race condition.
       const locked = await tx.document.findUniqueOrThrow({
         where: { id },
         select: { status: true },
       });
       if (locked.status !== "DRAFT") throw new Error("Only drafts can be issued");
 
-      // 2. Atomically assign the next sequential number for this type.
       const counter = await tx.documentCounter.upsert({
         where: { businessId_type: { businessId, type: doc.type } },
         create: { businessId, type: doc.type, lastNumber: 1 },
@@ -462,7 +495,6 @@ export async function issueDraft(id: string, businessId: string) {
         counter.lastNumber
       );
 
-      // 3. Resolve snapshot values that will be stored.
       const finalIssueDate = doc.issueDate ?? new Date();
       const finalCustomerName = doc.customerName ?? snapshotCustomerName(doc.customer);
       const finalCustomerEmail = doc.customerEmail ?? doc.customer.email;
@@ -472,7 +504,6 @@ export async function issueDraft(id: string, businessId: string) {
       const finalBusinessTaxId = doc.businessTaxId ?? business.taxId;
       const finalBusinessAddress = doc.businessAddress ?? business.address;
 
-      // 4. Compute SHA256 hash over the immutable issued-document data.
       const issuedHash = computeIssuedDocumentHash({
         type: doc.type,
         number,
@@ -485,17 +516,25 @@ export async function issueDraft(id: string, businessId: string) {
         businessName: finalBusinessName,
         businessTaxId: finalBusinessTaxId,
         businessAddress: finalBusinessAddress,
+        relatedDocumentId: doc.relatedDocumentId,
+        receiptAmountReceived: doc.receiptAmountReceived,
+        receiptPaymentMethod: doc.receiptPaymentMethod,
+        receiptPaymentReference: doc.receiptPaymentReference,
+        receiptCheckNumber: doc.receiptCheckNumber,
+        receiptCheckBank: doc.receiptCheckBank,
+        receiptCheckBranch: doc.receiptCheckBranch,
+        receiptCheckAccount: doc.receiptCheckAccount,
+        receiptCheckDueDate: doc.receiptCheckDueDate,
         items: doc.items,
         subtotalAmount: doc.subtotalAmount,
         taxAmount: doc.taxAmount,
         totalAmount: doc.totalAmount,
       });
 
-      // 5. Transition to ISSUED, populate snapshot fields, and store the hash.
-      return tx.document.update({
+      const issuedDoc = await tx.document.update({
         where: { id },
         data: {
-          status: "ISSUED",
+          status: DocumentStatus.ISSUED,
           number,
           issueDate: finalIssueDate,
           customerName: finalCustomerName,
@@ -508,16 +547,57 @@ export async function issueDraft(id: string, businessId: string) {
           issuedHash,
         },
       });
+
+      if (!isReceiptType(doc.type)) {
+        return issuedDoc;
+      }
+
+      const amountPaid = new Prisma.Decimal(doc.receiptAmountReceived ?? "0");
+      const cappedAmountPaid = Prisma.Decimal.min(amountPaid, doc.totalAmount);
+      const amountDue = Prisma.Decimal.max(
+        doc.totalAmount.sub(cappedAmountPaid),
+        new Prisma.Decimal(0)
+      );
+      const status = cappedAmountPaid.isZero()
+        ? DocumentStatus.ISSUED
+        : cappedAmountPaid.lessThan(doc.totalAmount)
+        ? DocumentStatus.PARTIALLY_PAID
+        : DocumentStatus.PAID;
+
+      await tx.payment.create({
+        data: {
+          businessId,
+          documentId: doc.id,
+          customerId: doc.customerId,
+          createdByUserId,
+          amount: cappedAmountPaid,
+          paymentDate: finalIssueDate,
+          method: doc.receiptPaymentMethod!,
+          reference: doc.receiptPaymentReference?.trim() || null,
+          checkNumber: doc.receiptCheckNumber?.trim() || null,
+          checkBank: doc.receiptCheckBank?.trim() || null,
+          checkBranch: doc.receiptCheckBranch?.trim() || null,
+          checkAccount: doc.receiptCheckAccount?.trim() || null,
+          checkDueDate: doc.receiptCheckDueDate ?? null,
+          notes: doc.notes?.trim() || null,
+        },
+      });
+
+      return tx.document.update({
+        where: { id },
+        data: {
+          amountPaid: cappedAmountPaid,
+          amountDue,
+          status,
+        },
+      });
     });
   } catch (error) {
-    // Unique constraint violation — duplicate document number.
-    // This should never happen in normal flow (counter is atomic), but acts
-    // as a last-resort safety net against data corruption or manual DB edits.
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === "P2002"
     ) {
-      throw new Error("NUMBERING_CONFLICT:Document number already exists — issue aborted");
+      throw new Error("NUMBERING_CONFLICT:Document number already exists ג€” issue aborted");
     }
     throw error;
   }
@@ -531,7 +611,9 @@ export async function cancelDocument(id: string, businessId: string) {
 
   if (!doc) throw new Error("Document not found");
   if (doc.status === "DRAFT") throw new Error("Draft documents cannot be cancelled");
-  if (doc.status === "PARTIALLY_PAID") throw new Error("Partially paid documents cannot be cancelled");
+  if (doc.status === "PARTIALLY_PAID") {
+    throw new Error("Partially paid documents cannot be cancelled");
+  }
   if (doc.status === "PAID") throw new Error("Paid documents cannot be cancelled");
   if (doc.status === "CANCELLED") throw new Error("Document is already cancelled");
   if (doc.status !== "ISSUED") throw new Error("Only issued documents can be cancelled");
@@ -544,7 +626,9 @@ export async function cancelDocument(id: string, businessId: string) {
     });
 
     if (locked.status === "DRAFT") throw new Error("Draft documents cannot be cancelled");
-    if (locked.status === "PARTIALLY_PAID") throw new Error("Partially paid documents cannot be cancelled");
+    if (locked.status === "PARTIALLY_PAID") {
+      throw new Error("Partially paid documents cannot be cancelled");
+    }
     if (locked.status === "PAID") throw new Error("Paid documents cannot be cancelled");
     if (locked.status === "CANCELLED") throw new Error("Document is already cancelled");
     if (locked.status !== "ISSUED") throw new Error("Only issued documents can be cancelled");
@@ -565,7 +649,6 @@ export async function duplicateDocument(id: string, businessId: string) {
 
   if (!source) throw new Error("Document not found");
 
-  // Recalculate totals by summing item values
   const subtotalAmount = source.items.reduce(
     (sum, item) => sum.plus(item.subtotalAmount),
     new Prisma.Decimal(0)
@@ -599,6 +682,105 @@ export async function duplicateDocument(id: string, businessId: string) {
         totalAmount,
         amountPaid: "0",
         amountDue: totalAmount,
+        eventDate: source.eventDate,
+        eventLocation: source.eventLocation,
+        eventHours: source.eventHours,
+        eventTime: source.eventTime,
+        relatedDocumentId: source.relatedDocumentId,
+        receiptAmountReceived: source.receiptAmountReceived,
+        receiptPaymentMethod: source.receiptPaymentMethod,
+        receiptPaymentReference: source.receiptPaymentReference,
+        receiptCheckNumber: source.receiptCheckNumber,
+        receiptCheckBank: source.receiptCheckBank,
+        receiptCheckBranch: source.receiptCheckBranch,
+        receiptCheckAccount: source.receiptCheckAccount,
+        receiptCheckDueDate: source.receiptCheckDueDate,
+        customerName: null,
+        customerEmail: null,
+        customerAddress: null,
+        customerTaxId: null,
+        businessName: null,
+        businessTaxId: null,
+        businessAddress: null,
+      },
+    });
+
+    await tx.documentItem.createMany({
+      data: source.items.map((item) => ({
+        documentId: draft.id,
+        lineIndex: item.lineIndex,
+        description: item.description,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        discountAmount: item.discountAmount,
+        subtotalAmount: item.subtotalAmount,
+        taxRate: item.taxRate,
+        taxAmount: item.taxAmount,
+        totalAmount: item.totalAmount,
+      })),
+    });
+
+    return draft;
+  });
+}
+
+export async function createDocumentFromQuote(
+  id: string,
+  businessId: string,
+  targetType: "INVOICE" | "RECEIPT" | "INVOICE_RECEIPT"
+) {
+  const source = await db.document.findFirst({
+    where: { id, businessId },
+    include: {
+      items: { orderBy: { lineIndex: "asc" } },
+      customer: true,
+    },
+  });
+
+  if (!source) throw new Error("Document not found");
+  if (source.type !== DocumentType.QUOTE) {
+    throw new Error("Only quotes can create follow-up documents");
+  }
+  if (source.status !== DocumentStatus.ISSUED) {
+    throw new Error("Only issued quotes can create follow-up documents");
+  }
+
+  return db.$transaction(async (tx) => {
+    const draft = await tx.document.create({
+      data: {
+        businessId,
+        customerId: source.customerId,
+        relatedDocumentId: source.id,
+        type: targetType,
+        status: DocumentStatus.DRAFT,
+        number: null,
+        issueDate: new Date(),
+        dueDate: targetType === "RECEIPT" ? new Date() : source.dueDate,
+        notes: source.notes,
+        internalNotes: source.internalNotes,
+        currency: source.currency,
+        isTaxInclusive: source.isTaxInclusive,
+        vatRateSnapshot: source.vatRateSnapshot,
+        subtotalAmount: source.subtotalAmount,
+        taxAmount: source.taxAmount,
+        totalAmount: source.totalAmount,
+        amountPaid: "0",
+        amountDue: source.totalAmount,
+        eventDate: source.eventDate,
+        eventLocation: source.eventLocation,
+        eventHours: source.eventHours,
+        eventTime: source.eventTime,
+        receiptAmountReceived:
+          targetType === "RECEIPT" || targetType === "INVOICE_RECEIPT"
+            ? source.totalAmount
+            : null,
+        receiptPaymentMethod: null,
+        receiptPaymentReference: null,
+        receiptCheckNumber: null,
+        receiptCheckBank: null,
+        receiptCheckBranch: null,
+        receiptCheckAccount: null,
+        receiptCheckDueDate: null,
         customerName: null,
         customerEmail: null,
         customerAddress: null,

@@ -668,10 +668,19 @@ type PdfDocumentData = PrismaDocument & {
   items: DocumentItem[];
   customer: Customer;
   payments: Payment[];
+  relatedDocument?: {
+    id: string;
+    number: string | null;
+    type: string;
+    status: string;
+  } | null;
 };
 
 interface BuildPdfInput {
-  business: Pick<Business, "name" | "taxId" | "address" | "logo" | "phone" | "email">;
+  business: Pick<
+    Business,
+    "name" | "taxId" | "address" | "logo" | "phone" | "email" | "taxType"
+  >;
   document: PdfDocumentData;
 }
 
@@ -719,6 +728,38 @@ function valueOrDash(value: string | null | undefined) {
 
 function paymentMethodLabel(method: string): string {
   return PAYMENT_METHOD_LABELS[method as PaymentMethod] ?? method;
+}
+
+function getPdfDocumentTypeLabel(type: string, taxType?: string | null) {
+  if (taxType === "osek_patur") {
+    if (type === "INVOICE") return "חשבונית";
+    if (type === "INVOICE_RECEIPT") return "חשבונית / קבלה";
+  }
+
+  return DOCUMENT_TYPE_LABELS[type as DocumentTypeValue] ?? type;
+}
+
+function paymentDetailsValue(
+  payment: Pick<
+    Payment,
+    | "reference"
+    | "checkNumber"
+    | "checkBank"
+    | "checkBranch"
+    | "checkAccount"
+    | "checkDueDate"
+  >
+) {
+  const parts = [
+    payment.reference ? `אסמכתא: ${sanitizeText(payment.reference)}` : "",
+    payment.checkNumber ? `שיק: ${sanitizeText(payment.checkNumber)}` : "",
+    payment.checkBank ? `בנק: ${sanitizeText(payment.checkBank)}` : "",
+    payment.checkBranch ? `סניף: ${sanitizeText(payment.checkBranch)}` : "",
+    payment.checkAccount ? `חשבון: ${sanitizeText(payment.checkAccount)}` : "",
+    payment.checkDueDate ? `פירעון: ${formatDate(payment.checkDueDate)}` : "",
+  ].filter(Boolean);
+
+  return parts.length > 0 ? parts.join(" | ") : EMPTY_VALUE;
 }
 
 function customerDisplayName(customer: Pick<Customer, "fullName" | "companyName">) {
@@ -958,12 +999,12 @@ function LegacyPage({ business, document }: BuildPdfInput) {
   const customerName = valueOrDash(
     document.customerName ?? customerDisplayName(document.customer)
   );
+  const customerPhone = valueOrDash(document.customer.phone);
   const customerTaxId = valueOrDash(document.customerTaxId ?? document.customer.taxId);
   const customerAddress = valueOrDash(document.customerAddress ?? document.customer.address);
   const customerEmail = valueOrDash(document.customerEmail ?? document.customer.email);
 
-  const typeLabel =
-    DOCUMENT_TYPE_LABELS[document.type as DocumentTypeValue] ?? document.type;
+  const typeLabel = getPdfDocumentTypeLabel(document.type, business.taxType);
   const statusLabel =
     DOCUMENT_STATUS_LABELS[document.status as DocumentStatusValue] ?? document.status;
 
@@ -1039,6 +1080,7 @@ function LegacyPage({ business, document }: BuildPdfInput) {
         <View style={styles.col}>
           <Text style={styles.sectionTitle}>פרטי לקוח</Text>
           <Field label="שם" value={customerName} />
+          <Field label="טלפון" value={customerPhone} />
           <Field label="ח.פ. / ע״מ" value={customerTaxId} />
           <Field label="כתובת" value={customerAddress} />
           <Field label="אימייל" value={customerEmail} />
@@ -1051,6 +1093,12 @@ function LegacyPage({ business, document }: BuildPdfInput) {
           <Field label="סטטוס" value={statusLabel} />
           <Field label="תאריך הנפקה" value={formatDate(document.issueDate)} />
           <Field label="תאריך תשלום" value={formatDate(document.dueDate)} />
+          {document.relatedDocument ? (
+            <Field
+              label="מסמך קשור"
+              value={document.relatedDocument.number ?? document.relatedDocument.id}
+            />
+          ) : null}
         </View>
       </View>
 
@@ -1151,7 +1199,7 @@ function LegacyPage({ business, document }: BuildPdfInput) {
                     {paymentMethodLabel(payment.method)}
                   </Text>
                   <Text style={styles.paymentCell}>
-                    {sanitizeText(payment.reference) || EMPTY_VALUE}
+                    {paymentDetailsValue(payment)}
                   </Text>
                   <Text style={styles.paymentCell}>
                     {formatCurrency(payment.amount.toString())}

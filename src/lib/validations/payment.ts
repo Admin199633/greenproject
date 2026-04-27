@@ -4,6 +4,8 @@ export const PAYMENT_METHODS = [
   "cash",
   "bank_transfer",
   "credit_card",
+  "bit",
+  "paybox",
   "check",
   "other",
 ] as const;
@@ -13,7 +15,9 @@ export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   cash: "מזומן",
   bank_transfer: "העברה בנקאית",
-  credit_card: "כרטיס אשראי",
+  credit_card: "אשראי",
+  bit: "ביט",
+  paybox: "פייבוקס",
   check: "שיק",
   other: "אחר",
 };

@@ -20,6 +20,7 @@ import DeleteDraftButton from "@/components/documents/DeleteDraftButton";
 import IssueDraftButton from "@/components/documents/IssueDraftButton";
 import CancelDocumentButton from "@/components/documents/CancelDocumentButton";
 import CreateCreditNoteButton from "@/components/documents/CreateCreditNoteButton";
+import CreateFromQuoteButton from "@/components/documents/CreateFromQuoteButton";
 import DuplicateDocumentButton from "@/components/documents/DuplicateDocumentButton";
 import DocumentShareActions from "@/components/documents/DocumentShareActions";
 import AddPaymentForm from "@/components/payments/AddPaymentForm";
@@ -49,6 +50,8 @@ export default async function DocumentDetailPage({ params }: PageProps) {
       doc.status === "PARTIALLY_PAID" ||
       doc.status === "PAID");
   const canDownloadPdf = !isDraft && doc.status !== "CANCELLED" && Boolean(doc.issuedHash);
+  const canCreateFromQuote = doc.type === "QUOTE" && doc.status === "ISSUED";
+  const supportsInvoiceReceipt = business.taxType !== "osek_patur";
   const publicPdfToken = doc.issuedHash
     ? createPublicPdfToken(doc.id, doc.issuedHash)
     : null;
@@ -102,6 +105,27 @@ export default async function DocumentDetailPage({ params }: PageProps) {
                   publicPdfToken={publicPdfToken}
                   totalAmountFormatted={formatCurrency(doc.totalAmount.toString())}
                 />
+              )}
+              {canCreateFromQuote && (
+                <>
+                  <CreateFromQuoteButton
+                    documentId={doc.id}
+                    targetType="INVOICE"
+                    label="צור חשבונית"
+                  />
+                  <CreateFromQuoteButton
+                    documentId={doc.id}
+                    targetType="RECEIPT"
+                    label="צור קבלה"
+                  />
+                  {supportsInvoiceReceipt && (
+                    <CreateFromQuoteButton
+                      documentId={doc.id}
+                      targetType="INVOICE_RECEIPT"
+                      label="צור חשבונית קבלה"
+                    />
+                  )}
+                </>
               )}
               <DuplicateDocumentButton documentId={doc.id} />
               {canCreateCreditNote && <CreateCreditNoteButton documentId={doc.id} />}
@@ -184,7 +208,7 @@ export default async function DocumentDetailPage({ params }: PageProps) {
             </div>
           )}
 
-          {(doc.sourceDocument || doc.creditNote) && (
+          {(doc.sourceDocument || doc.relatedDocument || doc.creditNote) && (
             <div className="mt-4 space-y-2 border-t border-slate-100 pt-4 text-sm">
               {doc.sourceDocument && (
                 <p className="text-slate-600">
@@ -194,6 +218,17 @@ export default async function DocumentDetailPage({ params }: PageProps) {
                     className="text-brand-600 hover:text-brand-800"
                   >
                     {doc.sourceDocument.number ?? "ללא מספר"}
+                  </Link>
+                </p>
+              )}
+              {doc.relatedDocument && (
+                <p className="text-slate-600">
+                  מסמך קשור:{" "}
+                  <Link
+                    href={`/documents/${doc.relatedDocument.id}`}
+                    className="text-brand-600 hover:text-brand-800"
+                  >
+                    {doc.relatedDocument.number ?? doc.relatedDocument.id}
                   </Link>
                 </p>
               )}

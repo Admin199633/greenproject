@@ -64,11 +64,15 @@ function getRecipientList(params: {
     return [customerEmail];
   }
 
-  if (!businessEmail) {
-    throw new Error("Business has no email address");
+  const recipients = Array.from(
+    new Set([businessEmail, customerEmail].filter(Boolean) as string[])
+  );
+
+  if (recipients.length === 0) {
+    throw new Error("No document email recipients");
   }
 
-  return Array.from(new Set([businessEmail, customerEmail].filter(Boolean) as string[]));
+  return recipients;
 }
 
 export async function sendDocumentEmail(

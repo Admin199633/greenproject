@@ -1,5 +1,128 @@
 # Running Summary
 
+## Issued document email + quote follow-up drafts + receipt workflow
+
+### Files changed
+
+- `prisma/schema.prisma`
+- `src/lib/validations/document.ts`
+- `src/lib/validations/payment.ts`
+- `src/services/document.service.ts`
+- `src/services/email.service.ts`
+- `src/components/documents/DocumentForm.tsx`
+- `src/components/documents/CreateFromQuoteButton.tsx`
+- `src/app/api/documents/[id]/issue/route.ts`
+- `src/app/api/documents/[id]/create-from-quote/route.ts`
+- `src/app/(dashboard)/documents/[id]/page.tsx`
+- `src/app/(dashboard)/documents/[id]/edit/page.tsx`
+- `src/lib/pdf/document-pdf.tsx`
+- `src/app/api/public/documents/[id]/pdf/route.ts`
+- `src/services/document.service.test.ts`
+- `docs/RUNNING_SUMMARY.md`
+
+### Email rules
+
+- Automatic issue email now always runs after a successful issue attempt via `POST /api/documents/[id]/issue`.
+- Automatic issue delivery targets:
+  - `business.email` when it exists
+  - `customer.email` when it exists
+- Automatic issue delivery is non-blocking. If sending fails, issuing still succeeds and the route logs:
+  - `console.error("[documents:email] failed", error)`
+- Manual `שליחה במייל` still uses `POST /api/documents/[id]/send` with `audience: "customer"`, so it sends only to the customer and never sends a duplicate owner copy.
+- Edge case fix: if `business.email` is missing but `customer.email` exists, the customer still receives the automatic issue email. We now fail only when no recipient email exists at all.
+
+### Quote to invoice / receipt flow
+
+- Added `POST /api/documents/[id]/create-from-quote`.
+- Supported targets:
+  - `INVOICE`
+  - `RECEIPT`
+  - `INVOICE_RECEIPT`
+- Constraints:
+  - source must be an `ISSUED` `QUOTE`
+  - `INVOICE_RECEIPT` is blocked for `osek_patur`
+- On `/green/documents/[id]`, issued quote pages now show:
+  - `צור חשבונית`
+  - `צור קבלה`
+  - `צור חשבונית קבלה` when supported
+- Clicking an action creates a new draft and redirects to `/green/documents/<newId>/edit`.
+- Prefilled into the new draft:
+  - existing `customerId` from the quote, so no duplicate customer is created
+  - customer name / phone / email through the existing edit-form seeding
+  - event fields
+  - line items
+  - totals
+  - notes / internal notes
+  - `relatedDocumentId = quote.id`
+- The original quote is never mutated.
+
+### Receipt fields and issue flow
+
+- Added focused receipt-draft fields on `Document`:
+  - `receiptAmountReceived`
+  - `receiptPaymentMethod`
+  - `receiptPaymentReference`
+  - `receiptCheckNumber`
+  - `receiptCheckBank`
+  - `receiptCheckBranch`
+  - `receiptCheckAccount`
+  - `receiptCheckDueDate`
+  - `relatedDocumentId`
+- Added matching check-detail fields on `Payment` so issued receipt PDFs can render real payment metadata instead of collapsing everything into a generic note.
+- Receipt form UI now includes a dedicated `פרטי תשלום` card on `RECEIPT` and `INVOICE_RECEIPT` drafts.
+- Required on receipt-like drafts:
+  - `סכום שהתקבל`
+  - `אמצעי תשלום`
+- Conditional UI:
+  - `שיק` shows check number / bank / branch / account / due date
+  - `העברה בנקאית` / `אשראי` / `ביט` / `פייבוקס` show reference number
+- Currency remains the document currency and defaults to `ILS`.
+- When a receipt-like draft is issued:
+  - the document still gets its sequential document number normally
+  - payment details are validated before issue
+  - a matching `Payment` row is created atomically inside the same transaction
+  - `amountPaid`, `amountDue`, and document status are updated from the issued receipt payment
+- This keeps receipts editable as drafts before issue while still preserving the existing payment-reporting model after issue.
+
+### Receipt PDF
+
+- Receipt / invoice-receipt PDFs now include:
+  - title from the document type
+  - receipt number
+  - issue date
+  - business details
+  - customer details including phone
+  - payment method
+  - payment reference or full check details when present
+  - total amount received from the payment summary row
+  - related document number when created from an existing quote / invoice
+  - notes when present
+- For `osek_patur` receipts:
+  - VAT rows stay hidden when `vatRateSnapshot = 0`
+  - `INVOICE_RECEIPT` creation from quote is blocked
+  - PDF labels avoid forcing `חשבונית מס` for exempt invoice-like output
+
+### Known limitations
+
+- Existing `sourceDocumentId` remains reserved for the one-to-one credit-note flow.
+- Quote / invoice linkage uses the new non-unique `relatedDocumentId` instead of reusing `sourceDocumentId`, because `sourceDocumentId` is currently `@unique` and already drives `creditNote`.
+- Manual browser verification was not performed in this session. The requested manual checklist is still pending in a live app session:
+  - issue quote -> business email sent
+  - issue quote with customer email -> customer email sent
+  - manual customer email sends only to customer
+  - open issued quote -> create receipt from it
+  - receipt opens with customer / items / amounts prefilled
+  - issue receipt
+  - receipt PDF contains payment details
+  - app works under `/green`
+
+### Verification run
+
+- `npx prisma generate`
+- `npx tsc --noEmit`
+- `npm run build`
+- `npm test -- --runInBand`
+
 ## Files changed
 
 - `src/app/(auth)/login/page.tsx`

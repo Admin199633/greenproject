@@ -110,7 +110,7 @@ describe("document.service", () => {
       });
       mockDb.$transaction.mockImplementation(async (callback) => callback(tx as never));
 
-      const result = await issueDraft("doc-1", "biz-1");
+      const result = await issueDraft("doc-1", "biz-1", "user-1");
 
       expect(result).toEqual({
         id: "doc-1",
@@ -156,7 +156,7 @@ describe("document.service", () => {
       });
       mockDb.$transaction.mockImplementation(async (callback) => callback(tx as never));
 
-      await issueDraft("doc-1", "biz-1");
+      await issueDraft("doc-1", "biz-1", "user-1");
 
       expect(tx.documentCounter.upsert).toHaveBeenCalledTimes(1);
       expect(tx.document.update).toHaveBeenCalledWith(
@@ -216,7 +216,7 @@ describe("document.service", () => {
       });
       mockDb.$transaction.mockImplementation(async (callback) => callback(tx as never));
 
-      await issueDraft("doc-1", "biz-1");
+      await issueDraft("doc-1", "biz-1", "user-1");
 
       expect(tx.document.update).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -233,7 +233,7 @@ describe("document.service", () => {
         status: "ISSUED",
       });
 
-      await expect(issueDraft("doc-1", "biz-1")).rejects.toThrow(
+      await expect(issueDraft("doc-1", "biz-1", "user-1")).rejects.toThrow(
         "Only drafts can be issued"
       );
       expect(mockDb.$transaction).not.toHaveBeenCalled();
@@ -271,7 +271,7 @@ describe("document.service", () => {
       };
       mockDb.$transaction.mockImplementation(async (callback) => callback(tx as never));
 
-      await expect(issueDraft("doc-1", "biz-1")).rejects.toThrow(
+      await expect(issueDraft("doc-1", "biz-1", "user-1")).rejects.toThrow(
         "Only drafts can be issued"
       );
       expect(tx.documentCounter.upsert).not.toHaveBeenCalled();

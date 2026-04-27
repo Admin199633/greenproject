@@ -32,10 +32,14 @@ export async function GET(req: Request, { params }: RouteCtx) {
             logo: true,
             phone: true,
             email: true,
+            taxType: true,
           },
         },
         customer: true,
         sourceDocument: {
+          select: { id: true, number: true, type: true, status: true },
+        },
+        relatedDocument: {
           select: { id: true, number: true, type: true, status: true },
         },
         creditNote: {
