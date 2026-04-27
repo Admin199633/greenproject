@@ -205,3 +205,165 @@ The underlying `issueDraft` service flow was already correct end-to-end with the
 4. Register a fresh account from the new `הרשמה` link and confirm the redirect back to `/green/login`.
 5. Check the Supabase-backed `User` table to confirm the row was created and `passwordHash` is hashed.
 6. Sign in with the same credentials at `/green/login` and confirm authentication still works in production under the `/green` base path.
+
+## Slow page navigation — measure & optimize (`/documents`, `/documents/new`, `/settings`, `/dashboard`)
+
+### Symptoms
+
+Reported in production:
+
+- `/green/documents` ≈ 7s
+- `/green/documents/new` ≈ 5s
+- `/green/settings` ≈ 9s
+
+### Measured bottlenecks
+
+After reading the loaders end-to-end:
+
+1. **`/settings` issued the same `Business.findUnique` twice.** The page called `requireBusiness()` (which already returns the full `Business`) and then immediately called `getBusiness(session.id)` — `session` was actually the business object, so `session.id === businessId`. Two identical Postgres round-trips for the same row.
+2. **`/dashboard` opened the JWT session twice.** It called `requireSession()` and `requireBusiness()` in parallel, but `requireBusiness()` itself calls `requireSession()` internally — so `getServerSession(authOptions)` ran twice, plus an extra `Business.findUnique` whose result the page never actually used (only `business.id` was read).
+3. **`/documents` over-fetched customers.** The filter dropdown only renders `id`/`fullName`/`companyName`, but `listCustomers(businessId)` did `findMany` with no `select`, returning every column (`notes`, `address`, `taxId`, `createdAt`, `updatedAt`, …) for every active customer.
+4. **`/documents/new` ran two queries serially.** `await requireBusiness()` (session decode + `Business.findUnique`) blocked `listSavedItems(business.id)` even though `savedItems` only needs the `businessId` (which is already on the JWT).
+
+### Changes
+
+#### New helpers
+
+- `src/lib/perf.ts` — tiny `perf(label, fn)` wrapper that logs `[perf] <label> <ms>ms` after the wrapped promise settles. Covers the loggers the spec asked for (`[perf] documents load total`, `[perf] settings load total`, `[perf] prisma query X`, …) without dragging in any tracing dep.
+- `src/services/auth.service.ts` — added `requireBusinessId()`, which returns `{ user, businessId }` from the JWT *without* a `Business.findUnique`. Pages that only need `businessId` (most of them) now use this and parallelise the actual data fetches. `requireBusiness()` is preserved for routes that genuinely need the full `Business` row (e.g. `/api/documents/[id]/issue`).
+- `src/services/customer.service.ts` — added `listCustomersForFilter(businessId)`, a slim `select`-only variant returning just `{ id, fullName, companyName }` for dropdown options. The original `listCustomers` is unchanged so the customers list page (which needs `phone`/`email`/`taxId`) is not affected.
+
+#### Page loaders
+
+- `src/app/(dashboard)/settings/page.tsx`
+  - Drops the duplicate `Business.findUnique`. Now: `requireBusinessId()` → `Promise.all([getBusiness(businessId), listSavedItems(businessId)])`.
+- `src/app/(dashboard)/documents/page.tsx`
+  - Switched to `requireBusinessId()` (no extra `Business.findUnique`).
+  - `listCustomers` → `listCustomersForFilter` for the dropdown.
+- `src/app/(dashboard)/documents/new/page.tsx`
+  - `requireBusinessId()` then `Promise.all([getBusiness(businessId), listSavedItems(businessId)])`. Previously the two queries ran in series.
+- `src/app/(dashboard)/dashboard/page.tsx`
+  - Single `getServerSession` via `requireBusinessId()`. The redundant `Business.findUnique` is gone — `getDashboardData(businessId)` already returns everything the page renders.
+
+#### Visible loading states (Next.js `loading.tsx`)
+
+The first paint of these routes was blocked on the entire server-side data fetch, so users saw a frozen tab during navigation. Added skeletons so the route transition is immediate:
+
+- `src/app/(dashboard)/documents/loading.tsx`
+- `src/app/(dashboard)/documents/new/loading.tsx`
+- `src/app/(dashboard)/settings/loading.tsx`
+
+(`src/app/(dashboard)/loading.tsx` already existed as a fallback.)
+
+#### Timing logs
+
+Wrapped the hot Prisma calls so prod logs show where the time is going. Logs use the format the spec asked for:
+
+- `[perf] documents load total <ms>ms`
+- `[perf] documents/new load total <ms>ms`
+- `[perf] settings load total <ms>ms`
+- `[perf] dashboard load total <ms>ms`
+- `[perf] dashboard.getDashboardData (7 queries) <ms>ms`
+- `[perf] document.listDocuments <ms>ms`
+- `[perf] customer.listCustomersForFilter <ms>ms`
+- `[perf] savedItem.listSavedItems <ms>ms`
+- `[perf] business.getBusiness <ms>ms`
+- `[perf] auth.requireBusiness business.findUnique <ms>ms`
+
+### Files changed
+
+- `src/lib/perf.ts` (new)
+- `src/services/auth.service.ts` (new `requireBusinessId`; `requireBusiness` instrumented)
+- `src/services/business.service.ts` (instrumented)
+- `src/services/customer.service.ts` (new `listCustomersForFilter`; instrumented)
+- `src/services/document.service.ts` (`listDocuments` instrumented)
+- `src/services/dashboard.service.ts` (parallel batch instrumented)
+- `src/services/savedItem.service.ts` (`listSavedItems` instrumented)
+- `src/app/(dashboard)/dashboard/page.tsx` (single session; no extra `Business` fetch)
+- `src/app/(dashboard)/documents/page.tsx` (slim filter customers; `requireBusinessId`)
+- `src/app/(dashboard)/documents/new/page.tsx` (parallel `business` + `savedItems`)
+- `src/app/(dashboard)/settings/page.tsx` (drop duplicate `Business.findUnique`)
+- `src/app/(dashboard)/documents/loading.tsx` (new)
+- `src/app/(dashboard)/documents/new/loading.tsx` (new)
+- `src/app/(dashboard)/settings/loading.tsx` (new)
+- `docs/RUNNING_SUMMARY.md`
+
+### Queries optimised (per page)
+
+| Route | Before | After |
+| --- | --- | --- |
+| `/settings` | `getServerSession` + `Business.findUnique` (auth) + `Business.findUnique` (page) + `SavedItem.findMany` — 1 session, 3 DB hits, partly serial | `getServerSession` + `Business.findUnique` ‖ `SavedItem.findMany` — 1 session, 2 DB hits, fully parallel |
+| `/documents` | `getServerSession` + `Business.findUnique` (auth) + `Document.findMany` (with `customer` select) ‖ `Customer.findMany` (every column) | `getServerSession` + `Document.findMany` ‖ `Customer.findMany` (`select: id/fullName/companyName`) — 1 fewer DB hit, much smaller customer payload |
+| `/documents/new` | `getServerSession` + `Business.findUnique` → `SavedItem.findMany` (serial) | `getServerSession` + `Business.findUnique` ‖ `SavedItem.findMany` (parallel) |
+| `/dashboard` | 2× `getServerSession` + `Business.findUnique` (whose result was unused) + `getDashboardData` (7 parallel queries) | 1× `getServerSession` + `getDashboardData` (7 parallel queries) — drops one full round-trip plus a duplicate session decode |
+
+No Prisma schema changes. No business-logic changes. Auth is intact (`requireBusinessId` still throws on missing session / missing `businessId`).
+
+### Before/after timing notes
+
+Per-query and per-page timings are now visible in the server logs (look for `[perf]` lines) — the spec's "before" numbers came from production observation; the "after" should be measured on the same environment since local timings won't match prod DB latency. The structural wins are deterministic regardless of environment:
+
+- `/settings`: −1 `Business.findUnique` (was duplicate), `getBusiness` and `listSavedItems` now overlap.
+- `/dashboard`: −1 `getServerSession`, −1 unused `Business.findUnique`.
+- `/documents`: customer payload reduced from full row to 3 columns; one `Business.findUnique` removed.
+- `/documents/new`: `getBusiness` and `listSavedItems` overlap (was serial).
+- All four routes now show a skeleton immediately on navigation instead of a blocked tab.
+
+### Verification
+
+- `npx tsc --noEmit` — clean.
+- `npm run build` — succeeds. The dynamic-server-usage warnings printed during `Generating static pages` are pre-existing and concern API routes that read `headers` for auth; they are correctly server-rendered (`ƒ` in the route table) and unrelated to this change.
+
+### How to verify in prod
+
+1. Deploy the branch.
+2. Tail server logs while navigating to `/green/documents`, `/green/documents/new`, `/green/settings`, `/green/dashboard`.
+3. For each route, confirm a `[perf] <route> load total <ms>ms` line appears, plus the per-query lines feeding into it. The page-total should be close to `max(parallel branches)` — if any single `[perf] prisma …` line is dominating, that is the next thing to attack (likely an index, not application code).
+4. On a cold navigation the new `loading.tsx` skeleton should be visible immediately, replaced by the real UI when the loader finishes.
+
+## Floating "+" quick-actions FAB
+
+A mobile-first floating action button now sits on every dashboard page so the user can jump straight into a new document without going through the documents list first.
+
+### Behaviour
+
+- Circular `+` button, fixed at the bottom-end corner of the viewport (visually bottom-left under our `dir="rtl"` root via Tailwind's logical `end-*` utilities, bottom-right under LTR if the layout direction ever changes).
+- Tap opens a bottom sheet on mobile, a centered card on `sm` and up. The sheet animates in (slide-up + fade backdrop, 200 ms ease-out) and animates back out on close.
+- Closes on backdrop click, on the explicit `×` button, on `Esc`, and after any quick-action link is clicked.
+- Body scroll is locked while the sheet is open and the previous `overflow` is restored on close.
+- `aria-haspopup="dialog"` / `aria-expanded` on the FAB; the sheet is a `role="dialog"` `aria-modal="true"` with an `aria-labelledby` title.
+- `env(safe-area-inset-bottom)` padding on both the FAB and the sheet to keep clear of the iOS home indicator.
+
+### Sections + actions
+
+- **מסמכי הכנסות** — הצעת מחיר → `/documents/new?type=quote`, חשבונית → `/documents/new?type=invoice`, קבלה → `/documents/new?type=receipt`.
+- **מסמכי ניהול שוטף** — תעודת משלוח → `/documents/new?type=delivery`.
+
+Next.js `Link` automatically prepends the `/green` `basePath`, so the rendered URLs are `/green/documents/new?type=…`.
+
+### `?type=` preselect on `/documents/new`
+
+`src/app/(dashboard)/documents/new/page.tsx` now reads `searchParams.type`, maps the lower-case slug to a `DocumentType` enum value (`quote → QUOTE`, `invoice → INVOICE`, `receipt → RECEIPT`, plus `invoice_receipt` and `credit_note` for completeness), and forwards it to `DocumentForm` as `defaultValues.type`. Unknown / missing values fall through to `DocumentForm`'s existing default (`INVOICE`) so behavior is unchanged for users who navigate to `/documents/new` directly.
+
+> **Note on `delivery`** — the schema's `DocumentType` enum is `QUOTE | INVOICE | RECEIPT | INVOICE_RECEIPT | CREDIT_NOTE`. There is no delivery-note (`תעודת משלוח`) type today, so the `?type=delivery` link still lands on the new-document form but the form opens with the default `INVOICE` type selected — the menu entry is wired exactly as the spec requested, but adding a real delivery-note flow needs a schema/`DocumentType` change which is intentionally out of scope here.
+
+### Files changed
+
+- `src/components/layout/QuickActionsFab.tsx` (new — client component, Tailwind-only, no new deps)
+- `src/app/(dashboard)/layout.tsx` (mounts `<QuickActionsFab />` once for every dashboard route)
+- `src/app/(dashboard)/documents/new/page.tsx` (consumes `searchParams.type`, maps slug → enum)
+- `docs/RUNNING_SUMMARY.md`
+
+### Verification
+
+- `npx tsc --noEmit` clean.
+- `npm run build` succeeds; all dashboard routes still build, no new dependencies added.
+- Manual smoke test plan:
+  1. Visit `/green/dashboard`, `/green/documents`, `/green/settings` on mobile width — FAB visible bottom-left in each.
+  2. Tap the FAB — sheet slides up, both section headings render (`מסמכי הכנסות`, `מסמכי ניהול שוטף`).
+  3. Tap `הצעת מחיר` — navigates to `/green/documents/new?type=quote`, the form loads with `הצעת מחיר` preselected in the type dropdown.
+  4. Repeat for `חשבונית` (`?type=invoice`), `קבלה` (`?type=receipt`).
+  5. Tap `תעודת משלוח` — navigates to `/green/documents/new?type=delivery`, form opens with the default `חשבונית מס` type (no error).
+  6. Tap the FAB → tap the dimmed backdrop → sheet closes; press `Esc` → sheet closes; reopen → tap the `×` → sheet closes.
+  7. Confirm body scroll is locked while open and unlocked after close (try scrolling the page behind the sheet).
+  8. Existing dashboard navigation (sidebar links, `+ מסמך חדש` button on `/documents`) still works unchanged.

@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { perf } from "@/lib/perf";
 
 const ISSUED_DOCUMENT_STATUSES = ["ISSUED", "PARTIALLY_PAID", "PAID"] as const;
 const OPEN_DOCUMENT_STATUSES = ["ISSUED", "PARTIALLY_PAID"] as const;
@@ -15,7 +16,7 @@ export async function getDashboardData(businessId: string) {
     recentDocuments,
     recentPayments,
     overdueDocuments,
-  ] = await Promise.all([
+  ] = await perf("dashboard.getDashboardData (7 queries)", () => Promise.all([
     db.customer.count({
       where: {
         businessId,
@@ -79,7 +80,7 @@ export async function getDashboardData(businessId: string) {
       orderBy: [{ dueDate: "asc" }, { createdAt: "desc" }],
       take: 5,
     }),
-  ]);
+  ]));
 
   return {
     kpis: {

@@ -1,8 +1,11 @@
 import { db } from "@/lib/db";
+import { perf } from "@/lib/perf";
 import type { BusinessFormValues } from "@/lib/validations/business";
 
 export async function getBusiness(businessId: string) {
-  return db.business.findUnique({ where: { id: businessId } });
+  return perf("business.getBusiness", () =>
+    db.business.findUnique({ where: { id: businessId } })
+  );
 }
 
 export async function updateBusiness(

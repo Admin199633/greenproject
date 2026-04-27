@@ -1,6 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { perf } from "@/lib/perf";
 
 /**
  * Returns the current session user, or throws if not authenticated.
@@ -15,16 +16,26 @@ export async function requireSession() {
 }
 
 /**
- * Returns the business owned by the current user, or throws if none found.
+ * Returns `{ user, businessId }` without an extra DB lookup for the business.
+ * Use in pages that only need the businessId (most do) so we can run other
+ * queries in parallel instead of waiting on a redundant `business.findUnique`.
  */
-export async function requireBusiness() {
+export async function requireBusinessId() {
   const user = await requireSession();
   if (!user.businessId) {
     throw new Error("No business associated with this account");
   }
-  const business = await db.business.findUnique({
-    where: { id: user.businessId },
-  });
+  return { user, businessId: user.businessId };
+}
+
+/**
+ * Returns the business owned by the current user, or throws if none found.
+ */
+export async function requireBusiness() {
+  const { businessId } = await requireBusinessId();
+  const business = await perf("auth.requireBusiness business.findUnique", () =>
+    db.business.findUnique({ where: { id: businessId } })
+  );
   if (!business) throw new Error("Business not found");
   return business;
 }

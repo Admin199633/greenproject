@@ -1,20 +1,24 @@
-import { requireBusiness } from "@/services/auth.service";
+import { requireBusinessId } from "@/services/auth.service";
 import { getBusiness } from "@/services/business.service";
 import { listSavedItems } from "@/services/savedItem.service";
+import { perf } from "@/lib/perf";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import BusinessSettingsForm from "./BusinessSettingsForm";
 import SavedItemsManager from "./SavedItemsManager";
 
 export default async function SettingsPage() {
-  const session = await requireBusiness();
-  const [business, savedItems] = await Promise.all([
-    getBusiness(session.id),
-    listSavedItems(session.id),
-  ]);
+  const t0 = Date.now();
+  const { businessId } = await requireBusinessId();
+
+  const [business, savedItems] = await perf("settings load total", () =>
+    Promise.all([getBusiness(businessId), listSavedItems(businessId)])
+  );
 
   if (!business) {
     return <p className="text-red-600">לא נמצא עסק</p>;
   }
+
+  console.log(`[perf] settings page total ${Date.now() - t0}ms`);
 
   return (
     <div className="max-w-2xl space-y-6">

@@ -1,6 +1,7 @@
 import { createHash } from "crypto";
 import { DocumentStatus, DocumentType, Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
+import { perf } from "@/lib/perf";
 import type { SaveDraftInput } from "@/lib/validations/document";
 
 type Tx = Prisma.TransactionClient;
@@ -190,7 +191,7 @@ export async function listDocuments(
 ) {
   const { type, customerId, status, dateFrom, dateTo, search } = filters;
 
-  return db.document.findMany({
+  return perf("document.listDocuments", () => db.document.findMany({
     where: {
       businessId,
       // Exclude soft-deleted documents from all list views
@@ -231,7 +232,7 @@ export async function listDocuments(
       },
     },
     orderBy: { createdAt: "desc" },
-  });
+  }));
 }
 
 export async function getDocumentById(id: string, businessId: string) {

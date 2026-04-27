@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import type { Customer } from "@prisma/client";
 import { db } from "@/lib/db";
+import { perf } from "@/lib/perf";
 import type { CustomerFormValues } from "@/lib/validations/customer";
 
 // ─── Queries ─────────────────────────────────────────────────────────────────
@@ -23,6 +24,21 @@ export async function listCustomers(businessId: string, search?: string) {
     },
     orderBy: { createdAt: "desc" },
   });
+}
+
+/**
+ * Slim variant for filter dropdowns: only the fields needed to render an
+ * <option>. Avoids dragging notes/address/taxId/etc. across the wire when
+ * the consumer only displays a label.
+ */
+export async function listCustomersForFilter(businessId: string) {
+  return perf("customer.listCustomersForFilter", () =>
+    db.customer.findMany({
+      where: { businessId, isActive: true },
+      select: { id: true, fullName: true, companyName: true },
+      orderBy: { createdAt: "desc" },
+    })
+  );
 }
 
 export async function getCustomerById(id: string, businessId: string) {

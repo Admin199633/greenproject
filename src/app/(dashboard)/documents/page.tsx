@@ -1,9 +1,9 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { requireBusiness } from "@/services/auth.service";
+import { requireBusinessId } from "@/services/auth.service";
 import { listDocuments } from "@/services/document.service";
-import { listCustomers } from "@/services/customer.service";
-import { getDisplayName } from "@/services/customer.service";
+import { listCustomersForFilter, getDisplayName } from "@/services/customer.service";
+import { perf } from "@/lib/perf";
 import { Card } from "@/components/ui/Card";
 import {
   Table,
@@ -32,13 +32,18 @@ interface PageProps {
 }
 
 export default async function DocumentsPage({ searchParams }: PageProps) {
+  const t0 = Date.now();
   const params = await searchParams;
-  const business = await requireBusiness();
+  const { businessId } = await requireBusinessId();
 
-  const [documents, customers] = await Promise.all([
-    listDocuments(business.id, params),
-    listCustomers(business.id),
-  ]);
+  const [documents, customers] = await perf("documents load total", () =>
+    Promise.all([
+      listDocuments(businessId, params),
+      listCustomersForFilter(businessId),
+    ])
+  );
+
+  console.log(`[perf] documents page total ${Date.now() - t0}ms`);
 
   return (
     <div className="space-y-5">

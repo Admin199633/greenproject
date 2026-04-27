@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { requireBusiness, requireSession } from "@/services/auth.service";
+import { requireBusinessId } from "@/services/auth.service";
 import { getDisplayName } from "@/services/customer.service";
 import { getDashboardData } from "@/services/dashboard.service";
+import { perf } from "@/lib/perf";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import {
   Table,
@@ -18,11 +19,12 @@ import {
 } from "@/components/documents/DocumentStatusBadge";
 
 export default async function DashboardPage() {
-  const [user, business] = await Promise.all([
-    requireSession(),
-    requireBusiness(),
-  ]);
-  const dashboard = await getDashboardData(business.id);
+  const t0 = Date.now();
+  const { user, businessId } = await requireBusinessId();
+  const dashboard = await perf("dashboard load total", () =>
+    getDashboardData(businessId)
+  );
+  console.log(`[perf] dashboard page total ${Date.now() - t0}ms`);
 
   return (
     <div className="space-y-6">

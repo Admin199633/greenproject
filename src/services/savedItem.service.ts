@@ -1,11 +1,14 @@
 import { db } from "@/lib/db";
+import { perf } from "@/lib/perf";
 import type { SavedItemInput } from "@/lib/validations/savedItem";
 
 export async function listSavedItems(businessId: string) {
-  return db.savedItem.findMany({
-    where: { businessId },
-    orderBy: { name: "asc" },
-  });
+  return perf("savedItem.listSavedItems", () =>
+    db.savedItem.findMany({
+      where: { businessId },
+      orderBy: { name: "asc" },
+    })
+  );
 }
 
 export async function createSavedItem(businessId: string, data: SavedItemInput) {
