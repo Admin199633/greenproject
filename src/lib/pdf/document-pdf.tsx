@@ -760,7 +760,6 @@ function QuotePage({ business, document }: BuildPdfInput) {
 
   const docNumber = safeOrDash(document.number ?? document.id);
   const issueDate = formatDate(document.issueDate);
-  const validUntil = formatDate(document.dueDate);
 
   const vatRate = Number(document.vatRateSnapshot);
   const showVat = Number.isFinite(vatRate) && vatRate > 0;
@@ -799,9 +798,6 @@ function QuotePage({ business, document }: BuildPdfInput) {
             <Text style={quote.heroMetaStrong}>{docNumber}</Text>
           </Text>
           <Text style={quote.heroMeta}>{issueDate}</Text>
-          {validUntil !== EMPTY_VALUE ? (
-            <Text style={quote.heroMeta}>בתוקף עד {validUntil}</Text>
-          ) : null}
         </View>
       </View>
 
