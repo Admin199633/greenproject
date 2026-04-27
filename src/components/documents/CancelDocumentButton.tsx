@@ -4,12 +4,18 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
+import { API_BASE } from "@/lib/api-base";
+import { cn } from "@/lib/utils";
 
 interface Props {
   documentId: string;
+  className?: string;
 }
 
-export default function CancelDocumentButton({ documentId }: Props) {
+export default function CancelDocumentButton({
+  documentId,
+  className,
+}: Props) {
   const router = useRouter();
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
@@ -23,7 +29,7 @@ export default function CancelDocumentButton({ documentId }: Props) {
     setError(null);
 
     startTransition(async () => {
-      const res = await fetch(`/api/documents/${documentId}/cancel`, {
+      const res = await fetch(`${API_BASE}/documents/${documentId}/cancel`, {
         method: "POST",
       });
 
@@ -41,10 +47,11 @@ export default function CancelDocumentButton({ documentId }: Props) {
   }
 
   return (
-    <div className="flex flex-col items-end gap-1">
+    <div className={cn("flex flex-col items-end gap-1 w-full sm:w-auto", className)}>
       <Button
         variant="destructive"
         size="sm"
+        className="min-h-[44px] w-full sm:min-h-8 sm:w-auto"
         onClick={handleCancel}
         disabled={isPending}
       >

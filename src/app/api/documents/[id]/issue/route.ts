@@ -13,7 +13,7 @@ export async function POST(_req: Request, { params }: RouteCtx) {
     const doc = await issueDraft(id, session.id);
     auditDocumentIssue(doc, session.ownerUserId);
 
-    void sendDocumentEmail(doc.id, session.id).catch((error) => {
+    void sendDocumentEmail(doc.id, session.id, { audience: "issue" }).catch((error) => {
       console.error("[documents:email] failed", error);
     });
 

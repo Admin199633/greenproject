@@ -2,16 +2,12 @@ import { NextResponse } from "next/server";
 import { requireBusiness } from "@/services/auth.service";
 import { getDocumentById } from "@/services/document.service";
 import { renderDocumentPdf } from "@/lib/pdf/document-pdf";
-import { PAYMENT_METHODS } from "@/lib/validations/payment";
+import {
+  assertDocumentPdfAllowed,
+  buildDocumentPdfFilename,
+} from "@/services/document-pdf.service";
 
 type RouteCtx = { params: Promise<{ id: string }> };
-
-const PDF_ALLOWED_STATUSES = new Set(["ISSUED", "PARTIALLY_PAID", "PAID"]);
-
-function buildFilename(number: string | null, id: string) {
-  const safeBase = (number ?? id).replace(/[^A-Za-z0-9_-]/g, "-");
-  return `${safeBase}.pdf`;
-}
 
 export async function GET(_req: Request, { params }: RouteCtx) {
   try {
@@ -23,53 +19,43 @@ export async function GET(_req: Request, { params }: RouteCtx) {
       return NextResponse.json({ error: "לא נמצא" }, { status: 404 });
     }
 
-    if (document.status === "DRAFT") {
-      return NextResponse.json(
-        { error: "לא ניתן להפיק PDF לטיוטה" },
-        { status: 400 }
-      );
-    }
+    try {
+      assertDocumentPdfAllowed(document);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "PDF_NOT_ALLOWED";
 
-    if (document.status === "CANCELLED") {
-      return NextResponse.json(
-        { error: "לא ניתן להפיק PDF למסמך מבוטל" },
-        { status: 400 }
-      );
-    }
+      if (message === "DRAFT_PDF_NOT_ALLOWED") {
+        return NextResponse.json(
+          { error: "לא ניתן להפיק PDF לטיוטה" },
+          { status: 400 }
+        );
+      }
+      if (message === "CANCELLED_PDF_NOT_ALLOWED") {
+        return NextResponse.json(
+          { error: "לא ניתן להפיק PDF למסמך מבוטל" },
+          { status: 400 }
+        );
+      }
+      if (message === "RECEIPT_PAYMENT_REQUIRED") {
+        return NextResponse.json(
+          { error: "לא ניתן להפיק קבלה ללא תשלום רשום" },
+          { status: 400 }
+        );
+      }
+      if (message === "RECEIPT_INVALID_PAYMENT_METHOD") {
+        return NextResponse.json(
+          { error: "אמצעי תשלום חסר או לא תקין - לא ניתן להפיק קבלה" },
+          { status: 400 }
+        );
+      }
 
-    if (!PDF_ALLOWED_STATUSES.has(document.status)) {
       return NextResponse.json(
         { error: "PDF זמין רק למסמכים שהונפקו" },
         { status: 400 }
       );
     }
 
-    // ── Receipt / Invoice-Receipt compliance validation (Task 1.3) ──────────
-    // A receipt is only legally valid if it records at least one payment with a
-    // recognised payment method.
-    const validPaymentMethodSet = new Set<string>(PAYMENT_METHODS);
-    if (
-      document.type === "RECEIPT" ||
-      document.type === "INVOICE_RECEIPT"
-    ) {
-      if (document.payments.length === 0) {
-        return NextResponse.json(
-          { error: "לא ניתן להפיק קבלה ללא תשלום רשום" },
-          { status: 400 }
-        );
-      }
-      const invalidMethod = document.payments.find(
-        (p) => !p.method || !validPaymentMethodSet.has(p.method)
-      );
-      if (invalidMethod) {
-        return NextResponse.json(
-          { error: "אמצעי תשלום חסר או לא תקין — לא ניתן להפיק קבלה" },
-          { status: 400 }
-        );
-      }
-    }
-
-    const filename = buildFilename(document.number, document.id);
+    const filename = buildDocumentPdfFilename(document.number, document.id);
     const pdfBuffer = await renderDocumentPdf({
       business,
       document,

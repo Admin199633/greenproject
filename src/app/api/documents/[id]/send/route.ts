@@ -9,7 +9,10 @@ export async function POST(req: Request, { params }: RouteCtx) {
     const { id } = await params;
     const business = await requireBusiness();
     const origin = new URL(req.url).origin;
-    const result = await sendDocumentEmail(id, business.id, { origin });
+    const result = await sendDocumentEmail(id, business.id, {
+      origin,
+      audience: "customer",
+    });
 
     return NextResponse.json(result, { status: 200 });
   } catch (error) {
@@ -36,9 +39,21 @@ export async function POST(req: Request, { params }: RouteCtx) {
         { status: 400 }
       );
     }
+    if (message === "Customer has no email address") {
+      return NextResponse.json(
+        { error: "ללקוח אין כתובת אימייל" },
+        { status: 400 }
+      );
+    }
     if (message === "SMTP is not configured") {
       return NextResponse.json(
         { error: "SMTP אינו מוגדר" },
+        { status: 500 }
+      );
+    }
+    if (message === "Document public PDF is unavailable") {
+      return NextResponse.json(
+        { error: "קישור ה-PDF הציבורי אינו זמין" },
         { status: 500 }
       );
     }

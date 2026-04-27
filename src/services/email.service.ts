@@ -2,15 +2,18 @@ import nodemailer from "nodemailer";
 import { db } from "@/lib/db";
 import {
   buildAbsoluteUrl,
-  buildDocumentEmailBody,
+  buildDocumentEmailHtml,
   buildDocumentEmailSubject,
-  buildDocumentPagePath,
-  buildDocumentPdfPath,
+  buildDocumentEmailText,
+  formatDocumentTotal,
 } from "@/lib/documents/delivery";
+import { buildPublicDocumentPdfPath } from "@/lib/documents/public-pdf";
 import { renderDocumentPdf } from "@/lib/pdf/document-pdf";
 import { getDocumentById } from "@/services/document.service";
 
 const SENDABLE_STATUSES = new Set(["ISSUED", "PARTIALLY_PAID", "PAID"]);
+
+type DeliveryAudience = "issue" | "customer";
 
 function buildFilename(number: string | null, id: string) {
   const base = (number ?? id).replace(/[^A-Za-z0-9_-]/g, "-");
@@ -34,14 +37,6 @@ function createTransport() {
   });
 }
 
-function getRecipientList(businessEmail: string | null | undefined, customerEmail: string | null | undefined) {
-  const recipients = [businessEmail?.trim(), customerEmail?.trim()].filter(
-    (value): value is string => Boolean(value)
-  );
-
-  return Array.from(new Set(recipients));
-}
-
 function getCustomerDisplayName(document: Awaited<ReturnType<typeof getDocumentById>>) {
   if (!document) return "לקוח";
 
@@ -53,11 +48,34 @@ function getCustomerDisplayName(document: Awaited<ReturnType<typeof getDocumentB
   );
 }
 
+function getRecipientList(params: {
+  audience: DeliveryAudience;
+  businessEmail: string | null | undefined;
+  customerEmail: string | null | undefined;
+}) {
+  const businessEmail = params.businessEmail?.trim() || null;
+  const customerEmail = params.customerEmail?.trim() || null;
+
+  if (params.audience === "customer") {
+    if (!customerEmail) {
+      throw new Error("Customer has no email address");
+    }
+    return [customerEmail];
+  }
+
+  if (!businessEmail) {
+    throw new Error("Business has no email address");
+  }
+
+  return Array.from(new Set([businessEmail, customerEmail].filter(Boolean) as string[]));
+}
+
 export async function sendDocumentEmail(
   documentId: string,
   businessId: string,
-  options?: { origin?: string | null }
+  options?: { origin?: string | null; audience?: DeliveryAudience }
 ): Promise<{ sent: boolean; to: string[]; attachedPdf: boolean }> {
+  const audience = options?.audience ?? "issue";
   const document = await getDocumentById(documentId, businessId);
 
   if (!document) {
@@ -68,28 +86,32 @@ export async function sendDocumentEmail(
     throw new Error("Document must be issued before sending");
   }
 
+  if (!document.issuedHash) {
+    throw new Error("Document public PDF is unavailable");
+  }
+
   const business = await db.business.findUniqueOrThrow({
     where: { id: businessId },
   });
 
-  const recipients = getRecipientList(
-    business.email,
-    document.customerEmail ?? document.customer.email
-  );
-
-  if (!business.email?.trim()) {
-    throw new Error("Business has no email address");
-  }
+  const recipients = getRecipientList({
+    audience,
+    businessEmail: business.email,
+    customerEmail: document.customerEmail ?? document.customer.email,
+  });
 
   const transport = createTransport();
   const documentNumber = document.number ?? document.id;
-  const documentUrl = buildAbsoluteUrl(
-    buildDocumentPagePath(document.id),
+  const pdfUrl = buildAbsoluteUrl(
+    buildPublicDocumentPdfPath(document.id, document.issuedHash),
     options?.origin
   );
-  const pdfUrl = buildAbsoluteUrl(buildDocumentPdfPath(document.id), options?.origin);
   const subject = buildDocumentEmailSubject(document.type, documentNumber);
   const filename = buildFilename(document.number, document.id);
+  const totalAmount = formatDocumentTotal(
+    document.totalAmount.toString(),
+    document.currency
+  );
 
   let attachment:
     | {
@@ -117,13 +139,27 @@ export async function sendDocumentEmail(
     from: fromAddress,
     to: recipients,
     subject,
-    text: buildDocumentEmailBody({
+    text: buildDocumentEmailText({
       customerName: getCustomerDisplayName(document),
+      businessName: business.name,
+      businessPhone: business.phone,
+      businessEmail: business.email,
       type: document.type,
       documentNumber,
-      documentUrl,
+      totalAmount,
       pdfUrl,
-      hasAttachment: Boolean(attachment),
+    }),
+    html: buildDocumentEmailHtml({
+      customerName: getCustomerDisplayName(document),
+      businessName: business.name,
+      businessLogo: business.logo,
+      businessPhone: business.phone,
+      businessEmail: business.email,
+      businessAddress: business.address,
+      type: document.type,
+      documentNumber,
+      totalAmount,
+      pdfUrl,
     }),
     attachments: attachment ? [attachment] : [],
   });

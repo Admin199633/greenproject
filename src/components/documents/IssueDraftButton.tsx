@@ -4,12 +4,14 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/Toast";
 import { API_BASE } from "@/lib/api-base";
+import { cn } from "@/lib/utils";
 
 interface Props {
   documentId: string;
+  className?: string;
 }
 
-export default function IssueDraftButton({ documentId }: Props) {
+export default function IssueDraftButton({ documentId, className }: Props) {
   const router = useRouter();
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
@@ -37,11 +39,11 @@ export default function IssueDraftButton({ documentId }: Props) {
   }
 
   return (
-    <div className="flex flex-col items-end gap-1">
+    <div className={cn("flex flex-col items-end gap-1 w-full sm:w-auto", className)}>
       <button
         onClick={handleIssue}
         disabled={isPending}
-        className="inline-flex items-center justify-center rounded-md text-sm font-medium h-8 px-3 bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-50 transition-colors"
+        className="inline-flex min-h-[44px] w-full items-center justify-center rounded-md bg-brand-600 px-4 text-sm font-medium text-white transition-colors hover:bg-brand-700 disabled:opacity-50 sm:min-h-8 sm:w-auto sm:px-3"
       >
         {isPending ? "מנפיק..." : "הנפק"}
       </button>

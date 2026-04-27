@@ -445,24 +445,31 @@ Issued documents now trigger a delivery step only after a successful issue. The 
 ### Email flow
 
 - Shared delivery logic lives in `src/services/email.service.ts`.
-- Recipients:
-  - `business.email` always
-  - `customer.email` when present (`document.customerEmail` snapshot first, fallback to `customer.email`)
+- Automatic issue behavior:
+  - always sends to `business.email`
+  - also sends to the customer when `customer.email` exists (`document.customerEmail` snapshot first, fallback to `customer.email`)
+- Manual customer resend behavior:
+  - `POST /api/documents/[id]/send`
+  - sends only to the customer
+  - does not resend to the business owner
 - Subject format:
   - `<סוג מסמך> חדשה מפוטופ - <number>`
   - example: `הצעת מחיר חדשה מפוטופ - QUO-0001`
-- Body format:
-  - `שלום <שם לקוח>,`
-  - `מצורפת <סוג מסמך> מספר <מספר>`
-  - `ניתן לצפות גם בקישור הבא:`
-  - `<document link>`
+- Premium email template:
+  - polished RTL HTML email
+  - business name and logo when available
+  - document type + number
+  - customer name
+  - total amount
+  - prominent CTA button: `צפייה / הורדת PDF`
+  - business contact block
+  - plain-text fallback included
 - PDF attachment behavior:
   - the server tries to render and attach `<number>.pdf`
-  - if PDF rendering fails, the email is still sent without attachment and includes the `/green/api/documents/[id]/pdf` link
-- Manual resend:
-  - `POST /api/documents/[id]/send`
-  - reuses the exact same delivery logic as the automatic post-issue send
-  - supports success/error toast handling on the document page
+  - if PDF rendering fails, the email still sends and falls back to the secure public PDF link
+- Customer-facing links:
+  - emails no longer include dashboard/document-app routes
+  - customer emails contain only the direct public PDF URL
 
 ### WhatsApp flow
 
@@ -479,14 +486,24 @@ Issued documents now trigger a delivery step only after a successful issue. The 
   - total amount
   - PDF link
 - PDF is never auto-attached to WhatsApp
+- Visual update:
+  - replaced with a WhatsApp-style green button
+  - includes inline WhatsApp icon
+  - larger tap target for mobile
 
 ### PDF link
 
-- Existing secure PDF route is reused:
+- Authenticated owner route remains:
   - `/green/api/documents/[id]/pdf`
-- Access control is unchanged:
-  - only the owning authenticated business can access it via `requireBusiness()`
-- Download/share links now explicitly point to the `/green` route so they keep working under the configured base path
+- Added secure public token route for customer-facing sharing:
+  - `/green/api/public/documents/[id]/pdf?token=...`
+- Token behavior:
+  - token is HMAC-signed from `document.id` + `issuedHash`
+  - only issued documents with a valid token can be opened
+  - invalid or missing tokens return `404`
+- Result:
+  - customers can open/download the PDF directly without logging in
+  - other documents are not exposed
 
 ### Required env vars
 
@@ -506,16 +523,25 @@ Issued documents now trigger a delivery step only after a successful issue. The 
   - `src/services/email.service.test.ts`
   - `src/lib/documents/delivery.test.ts`
 - Covered by tests:
-  - issuing/resend delivery sends to the business email
-  - customer email is added when present
+  - automatic issue delivery sends to the business email
+  - customer email is added on issue when present
+  - manual resend sends only to the customer
+  - premium email output uses the public PDF CTA link
   - WhatsApp URL/message formatting is correct
-  - PDF link path stays under `/green`
+  - public PDF link path stays under `/green`
+- Mobile overflow fix:
+  - issued-document action area now uses responsive grid/flex wrapping
+  - buttons are full-width / stacked on mobile
+  - min-height raised to 44px for tap targets
+  - no sideways scrolling required for the action group
 - Manual smoke test steps:
   1. Issue a draft from `/green/documents/[id]` and confirm issue still succeeds normally.
-  2. Verify the business inbox receives the document email.
-  3. If the customer has an email, verify the customer also receives the email.
-  4. Open the issued document page and click `הורדת PDF` to confirm the secure route returns the file.
-  5. Click `שליחה במייל` and confirm success/error toast behavior.
-  6. Click `שליחה ב-WhatsApp` with a phone and confirm the `wa.me` URL contains the expected message.
-  7. Repeat without a phone and confirm clipboard/share fallback works.
-  8. Confirm all links continue working under `/green`.
+  2. Verify the business inbox always receives the automatic issue email.
+  3. If the customer has an email, verify the customer also receives the automatic issue email.
+  4. Click `שליחה במייל` and verify only the customer receives the resend.
+  5. Open the customer email and confirm the CTA points to the signed public PDF route, not to `/green/documents/[id]`.
+  6. Open the signed public PDF link in a logged-out browser and confirm the PDF opens successfully.
+  7. Tamper with the token and confirm the public route returns `404`.
+  8. On mobile width, confirm the action buttons stack/wrap without horizontal overflow and each button is easy to tap.
+  9. Click `שליחה בוואטסאפ` with a phone and confirm the `wa.me` URL contains the expected message and public PDF link.
+  10. Repeat without a phone and confirm clipboard/share fallback works.

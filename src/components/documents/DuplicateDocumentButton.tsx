@@ -3,12 +3,18 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
+import { API_BASE } from "@/lib/api-base";
+import { cn } from "@/lib/utils";
 
 interface Props {
   documentId: string;
+  className?: string;
 }
 
-export default function DuplicateDocumentButton({ documentId }: Props) {
+export default function DuplicateDocumentButton({
+  documentId,
+  className,
+}: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -17,7 +23,7 @@ export default function DuplicateDocumentButton({ documentId }: Props) {
     setError(null);
 
     startTransition(async () => {
-      const res = await fetch(`/api/documents/${documentId}/duplicate`, {
+      const res = await fetch(`${API_BASE}/documents/${documentId}/duplicate`, {
         method: "POST",
       });
 
@@ -34,8 +40,14 @@ export default function DuplicateDocumentButton({ documentId }: Props) {
   }
 
   return (
-    <div className="flex flex-col items-end gap-1">
-      <Button variant="outline" size="sm" onClick={handleDuplicate} disabled={isPending}>
+    <div className={cn("flex flex-col items-end gap-1 w-full sm:w-auto", className)}>
+      <Button
+        variant="outline"
+        size="sm"
+        className="min-h-[44px] w-full sm:min-h-8 sm:w-auto"
+        onClick={handleDuplicate}
+        disabled={isPending}
+      >
         {isPending ? "משכפל..." : "שכפל מסמך"}
       </Button>
       {error ? <p className="text-xs text-red-600">{error}</p> : null}

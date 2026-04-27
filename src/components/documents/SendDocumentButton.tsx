@@ -3,12 +3,19 @@
 import { useState } from "react";
 import { useToast } from "@/components/ui/Toast";
 import { API_BASE } from "@/lib/api-base";
+import { cn } from "@/lib/utils";
 
 interface Props {
   documentId: string;
+  customerEmail?: string | null;
+  className?: string;
 }
 
-export default function SendDocumentButton({ documentId }: Props) {
+export default function SendDocumentButton({
+  documentId,
+  customerEmail,
+  className,
+}: Props) {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -39,8 +46,12 @@ export default function SendDocumentButton({ documentId }: Props) {
   return (
     <button
       onClick={handleSend}
-      disabled={isLoading}
-      className="inline-flex items-center justify-center rounded-md text-sm font-medium h-8 px-3 border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+      disabled={isLoading || !customerEmail}
+      title={!customerEmail ? "ללקוח אין כתובת אימייל" : undefined}
+      className={cn(
+        "inline-flex min-h-[44px] w-full items-center justify-center rounded-md border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-8 sm:w-auto sm:px-3",
+        className
+      )}
     >
       {isLoading ? "שולח..." : "שליחה במייל"}
     </button>
