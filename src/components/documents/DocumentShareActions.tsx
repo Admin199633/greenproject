@@ -4,10 +4,10 @@ import SendDocumentButton from "@/components/documents/SendDocumentButton";
 import { useToast } from "@/components/ui/Toast";
 import {
   buildAbsoluteUrl,
+  buildPublicDocumentPdfPath,
   buildWhatsappMessage,
   buildWhatsappShareUrl,
 } from "@/lib/documents/delivery";
-import { buildPublicDocumentPdfPath } from "@/lib/documents/public-pdf";
 
 interface Props {
   documentId: string;
@@ -16,7 +16,7 @@ interface Props {
   customerPhone: string | null;
   documentType: string;
   documentNumber: string;
-  issuedHash: string;
+  publicPdfToken: string;
   totalAmountFormatted: string;
 }
 
@@ -41,14 +41,14 @@ export default function DocumentShareActions({
   customerPhone,
   documentType,
   documentNumber,
-  issuedHash,
+  publicPdfToken,
   totalAmountFormatted,
 }: Props) {
   const { toast } = useToast();
 
   async function handleWhatsappShare() {
     const pdfUrl = buildAbsoluteUrl(
-      buildPublicDocumentPdfPath(documentId, issuedHash),
+      buildPublicDocumentPdfPath(documentId, publicPdfToken),
       window.location.origin
     );
     const message = buildWhatsappMessage({
@@ -86,7 +86,7 @@ export default function DocumentShareActions({
     <>
       <a
         href={buildAbsoluteUrl(
-          buildPublicDocumentPdfPath(documentId, issuedHash),
+          buildPublicDocumentPdfPath(documentId, publicPdfToken),
           typeof window === "undefined" ? undefined : window.location.origin
         )}
         target="_blank"

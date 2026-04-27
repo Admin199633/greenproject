@@ -545,3 +545,34 @@ Issued documents now trigger a delivery step only after a successful issue. The 
   8. On mobile width, confirm the action buttons stack/wrap without horizontal overflow and each button is easy to tap.
   9. Click `שליחה בוואטסאפ` with a phone and confirm the `wa.me` URL contains the expected message and public PDF link.
   10. Repeat without a phone and confirm clipboard/share fallback works.
+
+## NEXTAUTH_SECRET server-only fix
+
+The production crash came from a bad import boundary introduced by the signed public PDF work:
+
+- `src/components/documents/DocumentShareActions.tsx` is a client component
+- it imported `buildPublicDocumentPdfPath` from `src/lib/documents/public-pdf.ts`
+- that module also read `process.env.NEXTAUTH_SECRET` and threw `NEXTAUTH_SECRET is not configured`
+
+Because the client imported that shared helper, the secret-bearing module was pulled into the client graph and could fail during client rendering despite the env var existing correctly on Vercel.
+
+### Fix
+
+- `src/lib/documents/public-pdf.ts` is now explicitly server-only via `import "server-only"`
+- secret access remains only in server code:
+  - `src/lib/documents/public-pdf.ts`
+  - `src/app/api/auth/login/route.ts`
+- client-safe path building was moved to `src/lib/documents/delivery.ts`
+  - `buildPublicDocumentPdfPath(documentId, token)` now only formats the URL and never touches env vars
+- the signed token is now created on the server in:
+  - `src/app/(dashboard)/documents/[id]/page.tsx`
+  - `src/services/email.service.ts`
+- the client component receives the already-generated `publicPdfToken` as plain data and only builds the URL string
+
+### Logging
+
+Added server-only logging for missing auth secret:
+
+- `console.error("[auth] missing NEXTAUTH_SECRET")`
+
+This exists only in server code and does not expose the secret to the client.

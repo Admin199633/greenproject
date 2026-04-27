@@ -1,10 +1,10 @@
+import "server-only";
 import { createHmac, timingSafeEqual } from "crypto";
-
-const APP_BASE_PATH = "/green";
 
 function getPublicPdfSecret() {
   const secret = process.env.NEXTAUTH_SECRET?.trim();
   if (!secret) {
+    console.error("[auth] missing NEXTAUTH_SECRET");
     throw new Error("NEXTAUTH_SECRET is not configured");
   }
   return secret;
@@ -18,11 +18,6 @@ export function createPublicPdfToken(documentId: string, issuedHash: string) {
   return createHmac("sha256", getPublicPdfSecret())
     .update(buildTokenPayload(documentId, issuedHash))
     .digest("hex");
-}
-
-export function buildPublicDocumentPdfPath(documentId: string, issuedHash: string) {
-  const token = createPublicPdfToken(documentId, issuedHash);
-  return `${APP_BASE_PATH}/api/public/documents/${documentId}/pdf?token=${token}`;
 }
 
 export function verifyPublicPdfToken(

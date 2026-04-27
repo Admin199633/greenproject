@@ -24,6 +24,7 @@ import DuplicateDocumentButton from "@/components/documents/DuplicateDocumentBut
 import DocumentShareActions from "@/components/documents/DocumentShareActions";
 import AddPaymentForm from "@/components/payments/AddPaymentForm";
 import DeletePaymentButton from "@/components/payments/DeletePaymentButton";
+import { createPublicPdfToken } from "@/lib/documents/public-pdf";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { PAYMENT_METHOD_LABELS, type PaymentMethod } from "@/lib/validations/payment";
 
@@ -48,6 +49,9 @@ export default async function DocumentDetailPage({ params }: PageProps) {
       doc.status === "PARTIALLY_PAID" ||
       doc.status === "PAID");
   const canDownloadPdf = !isDraft && doc.status !== "CANCELLED" && Boolean(doc.issuedHash);
+  const publicPdfToken = doc.issuedHash
+    ? createPublicPdfToken(doc.id, doc.issuedHash)
+    : null;
   const canAddPayment =
     !isDraft &&
     doc.type !== "QUOTE" &&
@@ -87,7 +91,7 @@ export default async function DocumentDetailPage({ params }: PageProps) {
             </>
           ) : (
             <>
-              {canDownloadPdf && doc.issuedHash && (
+              {canDownloadPdf && publicPdfToken && (
                 <DocumentShareActions
                   documentId={doc.id}
                   customerName={doc.customerName ?? getDisplayName(doc.customer)}
@@ -95,7 +99,7 @@ export default async function DocumentDetailPage({ params }: PageProps) {
                   customerPhone={doc.customer.phone}
                   documentType={doc.type}
                   documentNumber={doc.number ?? doc.id}
-                  issuedHash={doc.issuedHash}
+                  publicPdfToken={publicPdfToken}
                   totalAmountFormatted={formatCurrency(doc.totalAmount.toString())}
                 />
               )}

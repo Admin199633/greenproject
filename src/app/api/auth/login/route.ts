@@ -11,6 +11,7 @@ const schema = z.object({
 
 export async function POST(req: NextRequest) {
   if (!process.env.NEXTAUTH_SECRET) {
+    console.error("[auth] missing NEXTAUTH_SECRET");
     return NextResponse.json(
       { error: "Server auth is not configured" },
       { status: 500 }

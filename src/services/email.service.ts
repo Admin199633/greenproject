@@ -5,9 +5,10 @@ import {
   buildDocumentEmailHtml,
   buildDocumentEmailSubject,
   buildDocumentEmailText,
+  buildPublicDocumentPdfPath,
   formatDocumentTotal,
 } from "@/lib/documents/delivery";
-import { buildPublicDocumentPdfPath } from "@/lib/documents/public-pdf";
+import { createPublicPdfToken } from "@/lib/documents/public-pdf";
 import { renderDocumentPdf } from "@/lib/pdf/document-pdf";
 import { getDocumentById } from "@/services/document.service";
 
@@ -102,8 +103,9 @@ export async function sendDocumentEmail(
 
   const transport = createTransport();
   const documentNumber = document.number ?? document.id;
+  const publicPdfToken = createPublicPdfToken(document.id, document.issuedHash);
   const pdfUrl = buildAbsoluteUrl(
-    buildPublicDocumentPdfPath(document.id, document.issuedHash),
+    buildPublicDocumentPdfPath(document.id, publicPdfToken),
     options?.origin
   );
   const subject = buildDocumentEmailSubject(document.type, documentNumber);

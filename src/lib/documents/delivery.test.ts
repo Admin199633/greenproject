@@ -1,22 +1,9 @@
 describe("document delivery helpers", () => {
-  const originalEnv = process.env;
-
-  beforeEach(() => {
-    process.env = {
-      ...originalEnv,
-      NEXTAUTH_SECRET: "test-secret",
-    };
-  });
-
-  afterAll(() => {
-    process.env = originalEnv;
-  });
-
   it("builds a public pdf path under /green", async () => {
-    const { buildPublicDocumentPdfPath } = await import("@/lib/documents/public-pdf");
-    const path = buildPublicDocumentPdfPath("doc-123", "hash-123");
+    const { buildPublicDocumentPdfPath } = await import("@/lib/documents/delivery");
+    const path = buildPublicDocumentPdfPath("doc-123", "token-123");
 
-    expect(path).toMatch(/^\/green\/api\/public\/documents\/doc-123\/pdf\?token=/);
+    expect(path).toBe("/green/api/public/documents/doc-123/pdf?token=token-123");
   });
 
   it("builds an absolute url when origin is provided", async () => {

@@ -34,6 +34,10 @@ export function buildDocumentPdfPath(documentId: string) {
   return `${APP_BASE_PATH}/api/documents/${documentId}/pdf`;
 }
 
+export function buildPublicDocumentPdfPath(documentId: string, token: string) {
+  return `${APP_BASE_PATH}/api/public/documents/${documentId}/pdf?token=${encodeURIComponent(token)}`;
+}
+
 export function buildAbsoluteUrl(path: string, origin?: string | null) {
   const baseOrigin = origin?.trim() || process.env.NEXTAUTH_URL?.trim();
   if (!baseOrigin) {
