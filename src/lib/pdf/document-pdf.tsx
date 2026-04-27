@@ -93,6 +93,25 @@ function splitDescription(raw: string | null | undefined) {
   return { title: first.trim() || EMPTY_VALUE, body: rest.join("\n").trim() };
 }
 
+// Quote items are presented as a card: bold title + bulleted body. We strip
+// trailing colons from the title (a common typing pattern: "חבילת גולד:")
+// and normalise bullet prefixes ("- foo", "• foo", "* foo", "· foo", "✓ foo")
+// so they all render with our own consistent bullet glyph.
+const TRAILING_COLON_RE = /[:：׃]+\s*$/;
+const LEADING_BULLET_RE = /^[\s•·◦●⁃\-\*✓✔]+\s*/;
+
+function parseQuoteItem(raw: string | null | undefined) {
+  const { title, body } = splitDescription(raw);
+  const cleanTitle = title.replace(TRAILING_COLON_RE, "").trim() || EMPTY_VALUE;
+  const bullets = body
+    ? body
+        .split(/\r?\n/)
+        .map((line) => line.replace(LEADING_BULLET_RE, "").trim())
+        .filter((line) => line.length > 0)
+    : [];
+  return { title: cleanTitle, bullets };
+}
+
 // ─── Shared (legacy) styles for non-quote document types ─────────────────────
 
 const styles = StyleSheet.create({
@@ -467,61 +486,94 @@ const quote = StyleSheet.create({
     marginBottom: 10,
     fontWeight: 700,
   },
-  // Items — clean borderless list with thin dividers
-  itemsHeaderRow: {
-    flexDirection: "row-reverse",
-    paddingVertical: 8,
-    borderBottomWidth: 2,
-    borderBottomColor: BRAND_COLOR,
+  // Service "card" — each item is presented as a small boutique block:
+  // eyebrow → bold title → bulleted body → divider → labeled price summary.
+  itemCard: {
+    backgroundColor: "#f8fafc",
+    borderWidth: 1,
+    borderColor: DIVIDER,
+    borderRadius: 8,
+    padding: 18,
+    marginBottom: 12,
   },
-  itemsHeaderCell: {
+  itemEyebrow: {
     fontSize: 8,
+    color: BRAND_COLOR,
+    letterSpacing: 1.4,
+    textTransform: "uppercase",
+    textAlign: "right",
+    marginBottom: 4,
+    fontWeight: 700,
+  },
+  itemTitle: {
+    fontSize: 15,
+    fontWeight: 700,
+    color: INK,
+    textAlign: "right",
+    lineHeight: 1.25,
+    marginBottom: 14,
+  },
+  bulletList: {
+    marginTop: 2,
+  },
+  bulletRow: {
+    flexDirection: "row-reverse",
+    alignItems: "flex-start",
+    paddingVertical: 3,
+  },
+  bulletDot: {
+    fontSize: 11,
+    color: BRAND_COLOR,
+    textAlign: "right",
+    width: 14,
+    lineHeight: 1.55,
+  },
+  bulletText: {
+    flex: 1,
+    fontSize: 10,
     color: INK_MUTED,
+    textAlign: "right",
+    lineHeight: 1.55,
+    paddingRight: 2,
+  },
+  priceDivider: {
+    height: 1,
+    backgroundColor: DIVIDER,
+    marginTop: 14,
+    marginBottom: 12,
+  },
+  priceSummary: {
+    flexDirection: "row-reverse",
+    justifyContent: "space-between",
+    alignItems: "flex-end",
+    gap: 16,
+  },
+  priceCell: {
+    flex: 1,
+  },
+  priceLabel: {
+    fontSize: 8,
+    color: INK_SUBTLE,
     letterSpacing: 1,
     textTransform: "uppercase",
     textAlign: "right",
+    marginBottom: 3,
   },
-  itemRow: {
-    flexDirection: "row-reverse",
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: DIVIDER,
+  priceLabelEnd: {
+    textAlign: "left",
   },
-  itemMain: {
-    flex: 5,
-    paddingLeft: 8,
-  },
-  itemTitle: {
+  priceValue: {
     fontSize: 11,
     fontWeight: 700,
     color: INK,
     textAlign: "right",
-    marginBottom: 2,
   },
-  itemBody: {
-    fontSize: 9,
-    color: INK_MUTED,
-    textAlign: "right",
-    lineHeight: 1.4,
-  },
-  itemQty: {
-    flex: 1,
-    fontSize: 10,
-    color: INK,
-    textAlign: "center",
-  },
-  itemPrice: {
-    flex: 1.4,
-    fontSize: 10,
-    color: INK_MUTED,
+  priceValueEnd: {
     textAlign: "left",
   },
-  itemTotal: {
-    flex: 1.4,
-    fontSize: 10,
-    color: INK,
-    textAlign: "left",
-    fontWeight: 700,
+  priceTotalValue: {
+    fontSize: 13,
+    color: BRAND_COLOR,
   },
   // Totals — right side aligned (RTL primary), final row emphasised
   totalsWrap: {
@@ -792,40 +844,60 @@ function QuotePage({ business, document }: BuildPdfInput) {
         ) : null}
       </View>
 
-      {/* Items */}
+      {/* Items — one boutique card per service */}
       <Text style={quote.sectionEyebrow}>פירוט השירותים</Text>
-      <View style={quote.itemsHeaderRow}>
-        <Text style={[quote.itemsHeaderCell, { flex: 5, paddingLeft: 8 }]}>
-          שם השירות
-        </Text>
-        <Text style={[quote.itemsHeaderCell, { flex: 1, textAlign: "center" }]}>
-          כמות
-        </Text>
-        <Text style={[quote.itemsHeaderCell, { flex: 1.4, textAlign: "left" }]}>
-          מחיר
-        </Text>
-        <Text style={[quote.itemsHeaderCell, { flex: 1.4, textAlign: "left" }]}>
-          סה&quot;כ
-        </Text>
-      </View>
 
       {document.items.map((item) => {
-        const { title, body } = splitDescription(item.description);
+        const { title, bullets } = parseQuoteItem(item.description);
         return (
-          <View key={item.id} style={quote.itemRow} wrap={false}>
-            <View style={quote.itemMain}>
-              <Text style={quote.itemTitle}>{title}</Text>
-              {body ? <Text style={quote.itemBody}>{body}</Text> : null}
+          <View key={item.id} style={quote.itemCard} wrap={false}>
+            <Text style={quote.itemEyebrow}>שירות נבחר</Text>
+            <Text style={quote.itemTitle}>{title}</Text>
+
+            {bullets.length > 0 ? (
+              <View style={quote.bulletList}>
+                {bullets.map((line, idx) => (
+                  <View
+                    key={`${item.id}-bullet-${idx}`}
+                    style={quote.bulletRow}
+                  >
+                    <Text style={quote.bulletDot}>•</Text>
+                    <Text style={quote.bulletText}>{line}</Text>
+                  </View>
+                ))}
+              </View>
+            ) : null}
+
+            <View style={quote.priceDivider} />
+
+            <View style={quote.priceSummary}>
+              <View style={quote.priceCell}>
+                <Text style={quote.priceLabel}>כמות</Text>
+                <Text style={quote.priceValue}>
+                  {formatQuantity(item.quantity.toString())}
+                </Text>
+              </View>
+              <View style={quote.priceCell}>
+                <Text style={quote.priceLabel}>מחיר ליחידה</Text>
+                <Text style={quote.priceValue}>
+                  {formatCurrency(item.unitPrice.toString())}
+                </Text>
+              </View>
+              <View style={quote.priceCell}>
+                <Text style={[quote.priceLabel, quote.priceLabelEnd]}>
+                  סה&quot;כ
+                </Text>
+                <Text
+                  style={[
+                    quote.priceValue,
+                    quote.priceValueEnd,
+                    quote.priceTotalValue,
+                  ]}
+                >
+                  {formatCurrency(item.totalAmount.toString())}
+                </Text>
+              </View>
             </View>
-            <Text style={quote.itemQty}>
-              {formatQuantity(item.quantity.toString())}
-            </Text>
-            <Text style={quote.itemPrice}>
-              {formatCurrency(item.unitPrice.toString())}
-            </Text>
-            <Text style={quote.itemTotal}>
-              {formatCurrency(item.totalAmount.toString())}
-            </Text>
           </View>
         );
       })}
