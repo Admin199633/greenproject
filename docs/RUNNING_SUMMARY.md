@@ -437,3 +437,85 @@ A new `sanitizeText(value)` helper at the top of `src/lib/pdf/document-pdf.tsx` 
   4. Paste a description with hidden Bidi marks (e.g. copy from a Hebrew web page) — confirm the rendered PDF shows clean text with no `Ž=` / boxes / extra whitespace.
   5. Issue a `RECEIPT` and an `INVOICE` — confirm those still render through the legacy layout and look exactly as before this change.
   6. Confirm Hebrew RTL ordering everywhere (cards, item rows, totals, footer).
+
+## Document email + WhatsApp delivery
+
+Issued documents now trigger a delivery step only after a successful issue. The issue transaction and numbering logic are unchanged: the route issues first, audits second, and then starts email delivery in the background. If delivery fails, issuing still succeeds and the failure is logged with `console.error("[documents:email] failed", error)`.
+
+### Email flow
+
+- Shared delivery logic lives in `src/services/email.service.ts`.
+- Recipients:
+  - `business.email` always
+  - `customer.email` when present (`document.customerEmail` snapshot first, fallback to `customer.email`)
+- Subject format:
+  - `<סוג מסמך> חדשה מפוטופ - <number>`
+  - example: `הצעת מחיר חדשה מפוטופ - QUO-0001`
+- Body format:
+  - `שלום <שם לקוח>,`
+  - `מצורפת <סוג מסמך> מספר <מספר>`
+  - `ניתן לצפות גם בקישור הבא:`
+  - `<document link>`
+- PDF attachment behavior:
+  - the server tries to render and attach `<number>.pdf`
+  - if PDF rendering fails, the email is still sent without attachment and includes the `/green/api/documents/[id]/pdf` link
+- Manual resend:
+  - `POST /api/documents/[id]/send`
+  - reuses the exact same delivery logic as the automatic post-issue send
+  - supports success/error toast handling on the document page
+
+### WhatsApp flow
+
+- Issued document page actions now include:
+  - `הורדת PDF`
+  - `שליחה במייל`
+  - `שליחה ב-WhatsApp`
+- WhatsApp button behavior:
+  - if `customer.phone` exists, opens `https://wa.me/<phone>?text=<encoded message>`
+  - if no phone exists, copies the message to clipboard; if clipboard is unavailable, falls back to `navigator.share`
+- WhatsApp message content:
+  - greeting
+  - document type + number
+  - total amount
+  - PDF link
+- PDF is never auto-attached to WhatsApp
+
+### PDF link
+
+- Existing secure PDF route is reused:
+  - `/green/api/documents/[id]/pdf`
+- Access control is unchanged:
+  - only the owning authenticated business can access it via `requireBusiness()`
+- Download/share links now explicitly point to the `/green` route so they keep working under the configured base path
+
+### Required env vars
+
+- `SMTP_HOST`
+- `SMTP_PORT`
+- `SMTP_SECURE`
+- `SMTP_USER`
+- `SMTP_PASS`
+- `SMTP_FROM`
+- `NEXTAUTH_URL`
+
+`NEXTAUTH_URL` is used to build absolute links for automatic issue-triggered emails when there is no request origin available.
+
+### Verification
+
+- Added tests:
+  - `src/services/email.service.test.ts`
+  - `src/lib/documents/delivery.test.ts`
+- Covered by tests:
+  - issuing/resend delivery sends to the business email
+  - customer email is added when present
+  - WhatsApp URL/message formatting is correct
+  - PDF link path stays under `/green`
+- Manual smoke test steps:
+  1. Issue a draft from `/green/documents/[id]` and confirm issue still succeeds normally.
+  2. Verify the business inbox receives the document email.
+  3. If the customer has an email, verify the customer also receives the email.
+  4. Open the issued document page and click `הורדת PDF` to confirm the secure route returns the file.
+  5. Click `שליחה במייל` and confirm success/error toast behavior.
+  6. Click `שליחה ב-WhatsApp` with a phone and confirm the `wa.me` URL contains the expected message.
+  7. Repeat without a phone and confirm clipboard/share fallback works.
+  8. Confirm all links continue working under `/green`.

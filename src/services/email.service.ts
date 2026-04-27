@@ -1,12 +1,14 @@
 import nodemailer from "nodemailer";
 import { db } from "@/lib/db";
-import { getDocumentById } from "@/services/document.service";
-import { renderDocumentPdf } from "@/lib/pdf/document-pdf";
 import {
-  DOCUMENT_TYPE_LABELS,
-  type DocumentTypeValue,
-} from "@/lib/validations/document";
-import { getBusiness } from "@/services/business.service";
+  buildAbsoluteUrl,
+  buildDocumentEmailBody,
+  buildDocumentEmailSubject,
+  buildDocumentPagePath,
+  buildDocumentPdfPath,
+} from "@/lib/documents/delivery";
+import { renderDocumentPdf } from "@/lib/pdf/document-pdf";
+import { getDocumentById } from "@/services/document.service";
 
 const SENDABLE_STATUSES = new Set(["ISSUED", "PARTIALLY_PAID", "PAID"]);
 
@@ -16,8 +18,10 @@ function buildFilename(number: string | null, id: string) {
 }
 
 function createTransport() {
-  const host = process.env.SMTP_HOST;
-  if (!host) return null;
+  const host = process.env.SMTP_HOST?.trim();
+  if (!host) {
+    throw new Error("SMTP is not configured");
+  }
 
   return nodemailer.createTransport({
     host,
@@ -30,10 +34,30 @@ function createTransport() {
   });
 }
 
+function getRecipientList(businessEmail: string | null | undefined, customerEmail: string | null | undefined) {
+  const recipients = [businessEmail?.trim(), customerEmail?.trim()].filter(
+    (value): value is string => Boolean(value)
+  );
+
+  return Array.from(new Set(recipients));
+}
+
+function getCustomerDisplayName(document: Awaited<ReturnType<typeof getDocumentById>>) {
+  if (!document) return "לקוח";
+
+  return (
+    document.customerName ??
+    document.customer.companyName ??
+    document.customer.fullName ??
+    "לקוח"
+  );
+}
+
 export async function sendDocumentEmail(
   documentId: string,
-  businessId: string
-): Promise<{ sent: boolean; to: string }> {
+  businessId: string,
+  options?: { origin?: string | null }
+): Promise<{ sent: boolean; to: string[]; attachedPdf: boolean }> {
   const document = await getDocumentById(documentId, businessId);
 
   if (!document) {
@@ -44,108 +68,69 @@ export async function sendDocumentEmail(
     throw new Error("Document must be issued before sending");
   }
 
-  const customerEmail =
-    document.customerEmail ?? document.customer.email;
-
-  if (!customerEmail) {
-    throw new Error("Customer has no email address");
-  }
-
   const business = await db.business.findUniqueOrThrow({
     where: { id: businessId },
   });
 
-  const pdfBuffer = await renderDocumentPdf({ business, document });
-  const filename = buildFilename(document.number, document.id);
-  const typeLabel =
-    DOCUMENT_TYPE_LABELS[document.type as DocumentTypeValue] ?? document.type;
-  const subject = `${typeLabel} ${document.number ?? ""} — ${business.name}`.trim();
+  const recipients = getRecipientList(
+    business.email,
+    document.customerEmail ?? document.customer.email
+  );
 
-  const transport = createTransport();
-
-  if (!transport) {
-    // Stub: log instead of sending when SMTP is not configured
-    console.error(
-      `[email stub] Would send "${subject}" to ${customerEmail} (${filename}, ${pdfBuffer.byteLength} bytes)`
-    );
-    return { sent: false, to: customerEmail };
+  if (!business.email?.trim()) {
+    throw new Error("Business has no email address");
   }
 
-  const fromAddress = process.env.SMTP_FROM ?? business.email ?? "noreply@example.com";
-
-  await transport.sendMail({
-    from: fromAddress,
-    to: customerEmail,
-    subject,
-    text: `מצורף ${typeLabel} ${document.number ?? ""} מאת ${business.name}.`,
-    attachments: [
-      {
-        filename,
-        content: Buffer.from(pdfBuffer),
-        contentType: "application/pdf",
-      },
-    ],
-  });
-
-  return { sent: true, to: customerEmail };
-}
-
-/**
- * Send a plain-text notification to the business email when a document is issued.
- * Returns { sent: false } (does NOT throw) when business.email is missing,
- * SMTP is not configured, or sending fails — so the caller's issue flow is never blocked.
- */
-export async function sendIssueNotificationEmail(
-  documentId: string,
-  businessId: string
-): Promise<{ sent: boolean }> {
-  const [document, business] = await Promise.all([
-    getDocumentById(documentId, businessId),
-    getBusiness(businessId),
-  ]);
-
-  if (!document || !business) return { sent: false };
-
-  const recipientEmail = business.email?.trim();
-  if (!recipientEmail) return { sent: false };
-
-  const typeLabel =
-    DOCUMENT_TYPE_LABELS[document.type as DocumentTypeValue] ?? document.type;
-  const docRef = document.number ?? document.id;
-  const customerName =
-    document.customerName ??
-    document.customer.companyName ??
-    document.customer.fullName ??
-    "";
-  const subject = `[הנפקה] ${typeLabel} ${docRef}`;
-  const body = [
-    `${typeLabel} ${docRef} הונפק בהצלחה.`,
-    ``,
-    `לקוח: ${customerName}`,
-    `סכום: ${Number(document.totalAmount).toFixed(2)} ₪`,
-    `תאריך: ${document.issueDate ? new Intl.DateTimeFormat("he-IL").format(document.issueDate) : "—"}`,
-    ``,
-    `לצפייה במסמך: /documents/${document.id}`,
-  ].join("\n");
-
   const transport = createTransport();
+  const documentNumber = document.number ?? document.id;
+  const documentUrl = buildAbsoluteUrl(
+    buildDocumentPagePath(document.id),
+    options?.origin
+  );
+  const pdfUrl = buildAbsoluteUrl(buildDocumentPdfPath(document.id), options?.origin);
+  const subject = buildDocumentEmailSubject(document.type, documentNumber);
+  const filename = buildFilename(document.number, document.id);
 
-  if (!transport) {
-    console.error(
-      `[email stub] Issue notification: "${subject}" → ${recipientEmail}`
-    );
-    return { sent: false };
+  let attachment:
+    | {
+        filename: string;
+        content: Buffer;
+        contentType: string;
+      }
+    | undefined;
+
+  try {
+    const pdfBuffer = await renderDocumentPdf({ business, document });
+    attachment = {
+      filename,
+      content: Buffer.from(pdfBuffer),
+      contentType: "application/pdf",
+    };
+  } catch (error) {
+    console.error("[documents:email] pdf generation failed", error);
   }
 
   const fromAddress =
-    process.env.SMTP_FROM ?? business.email ?? "noreply@example.com";
+    process.env.SMTP_FROM?.trim() || business.email?.trim() || "noreply@example.com";
 
   await transport.sendMail({
     from: fromAddress,
-    to: recipientEmail,
+    to: recipients,
     subject,
-    text: body,
+    text: buildDocumentEmailBody({
+      customerName: getCustomerDisplayName(document),
+      type: document.type,
+      documentNumber,
+      documentUrl,
+      pdfUrl,
+      hasAttachment: Boolean(attachment),
+    }),
+    attachments: attachment ? [attachment] : [],
   });
 
-  return { sent: true };
+  return {
+    sent: true,
+    to: recipients,
+    attachedPdf: Boolean(attachment),
+  };
 }

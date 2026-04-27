@@ -4,12 +4,12 @@ import { sendDocumentEmail } from "@/services/email.service";
 
 type RouteCtx = { params: Promise<{ id: string }> };
 
-export async function POST(_req: Request, { params }: RouteCtx) {
+export async function POST(req: Request, { params }: RouteCtx) {
   try {
     const { id } = await params;
     const business = await requireBusiness();
-
-    const result = await sendDocumentEmail(id, business.id);
+    const origin = new URL(req.url).origin;
+    const result = await sendDocumentEmail(id, business.id, { origin });
 
     return NextResponse.json(result, { status: 200 });
   } catch (error) {
@@ -30,14 +30,20 @@ export async function POST(_req: Request, { params }: RouteCtx) {
         { status: 400 }
       );
     }
-    if (message === "Customer has no email address") {
+    if (message === "Business has no email address") {
       return NextResponse.json(
-        { error: "ללקוח אין כתובת אימייל" },
+        { error: "לעסק אין כתובת אימייל" },
         { status: 400 }
       );
     }
+    if (message === "SMTP is not configured") {
+      return NextResponse.json(
+        { error: "SMTP אינו מוגדר" },
+        { status: 500 }
+      );
+    }
 
-    console.error("[POST /api/documents/:id/send]", error);
+    console.error("[documents:email] failed", error);
     return NextResponse.json({ error: "שגיאת שרת" }, { status: 500 });
   }
 }

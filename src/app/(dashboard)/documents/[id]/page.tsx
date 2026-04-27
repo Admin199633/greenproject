@@ -21,7 +21,7 @@ import IssueDraftButton from "@/components/documents/IssueDraftButton";
 import CancelDocumentButton from "@/components/documents/CancelDocumentButton";
 import CreateCreditNoteButton from "@/components/documents/CreateCreditNoteButton";
 import DuplicateDocumentButton from "@/components/documents/DuplicateDocumentButton";
-import SendDocumentButton from "@/components/documents/SendDocumentButton";
+import DocumentShareActions from "@/components/documents/DocumentShareActions";
 import AddPaymentForm from "@/components/payments/AddPaymentForm";
 import DeletePaymentButton from "@/components/payments/DeletePaymentButton";
 import { formatCurrency, formatDate } from "@/lib/utils";
@@ -72,7 +72,7 @@ export default async function DocumentDetailPage({ params }: PageProps) {
           </p>
         </div>
 
-          <div className="flex items-start gap-2 flex-wrap shrink-0">
+        <div className="flex items-start gap-2 flex-wrap shrink-0">
           {isDraft ? (
             <>
               <IssueDraftButton documentId={doc.id} />
@@ -88,17 +88,13 @@ export default async function DocumentDetailPage({ params }: PageProps) {
           ) : (
             <>
               {canDownloadPdf && (
-                <Link
-                  href={`/api/documents/${doc.id}/pdf`}
-                  className="inline-flex items-center justify-center rounded-md text-sm font-medium h-8 px-3 border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 transition-colors"
-                >
-                  הורד PDF
-                </Link>
-              )}
-              {canDownloadPdf && (
-                <SendDocumentButton
+                <DocumentShareActions
                   documentId={doc.id}
-                  customerEmail={doc.customerEmail ?? doc.customer.email}
+                  customerName={doc.customerName ?? getDisplayName(doc.customer)}
+                  customerPhone={doc.customer.phone}
+                  documentType={doc.type}
+                  documentNumber={doc.number ?? doc.id}
+                  totalAmountFormatted={formatCurrency(doc.totalAmount.toString())}
                 />
               )}
               <DuplicateDocumentButton documentId={doc.id} />
@@ -130,14 +126,13 @@ export default async function DocumentDetailPage({ params }: PageProps) {
               },
               { label: "מטבע", value: doc.currency },
               {
-                label: "מחירים כוללים מע״מ",
+                label: 'מחירים כוללים מע"מ',
                 value: doc.isTaxInclusive ? "כן" : "לא",
               },
               {
-                label: "שיעור מע״מ",
+                label: 'שיעור מע"מ',
                 value: `${doc.vatRateSnapshot.toString()}%`,
               },
-              // Photography quote fields — shown when present
               ...(doc.eventDate
                 ? [{ label: "תאריך האירוע", value: formatDate(doc.eventDate) }]
                 : []),
@@ -217,7 +212,6 @@ export default async function DocumentDetailPage({ params }: PageProps) {
           <CardTitle>פריטים</CardTitle>
         </CardHeader>
 
-        {/* Mobile list */}
         <div className="sm:hidden divide-y divide-slate-100 border-t border-slate-100">
           {doc.items.map((item) => (
             <div key={item.id} className="p-4 space-y-2">
@@ -238,15 +232,15 @@ export default async function DocumentDetailPage({ params }: PageProps) {
                   <dd className="tabular-nums">{item.quantity.toString()}</dd>
                 </div>
                 <div className="flex justify-between">
-                  <dt className="text-slate-500">מחיר יח׳</dt>
+                  <dt className="text-slate-500">מחיר יח'</dt>
                   <dd className="tabular-nums">{formatCurrency(item.unitPrice.toString())}</dd>
                 </div>
                 <div className="flex justify-between">
-                  <dt className="text-slate-500">לפני מע״מ</dt>
+                  <dt className="text-slate-500">לפני מע"מ</dt>
                   <dd className="tabular-nums">{formatCurrency(item.subtotalAmount.toString())}</dd>
                 </div>
                 <div className="flex justify-between">
-                  <dt className="text-slate-500">מע״מ</dt>
+                  <dt className="text-slate-500">מע"מ</dt>
                   <dd className="tabular-nums">{formatCurrency(item.taxAmount.toString())}</dd>
                 </div>
                 {Number(item.discountAmount) > 0 && (
@@ -260,7 +254,6 @@ export default async function DocumentDetailPage({ params }: PageProps) {
           ))}
         </div>
 
-        {/* Desktop table */}
         <div className="hidden sm:block">
           <Table>
             <TableHeader>
@@ -270,9 +263,9 @@ export default async function DocumentDetailPage({ params }: PageProps) {
                 <TableHead className="text-left">כמות</TableHead>
                 <TableHead className="text-left">מחיר יחידה</TableHead>
                 <TableHead className="text-left">הנחה</TableHead>
-                <TableHead className="text-left">לפני מע״מ</TableHead>
-                <TableHead className="text-left">מע״מ</TableHead>
-                <TableHead className="text-left">סה״כ</TableHead>
+                <TableHead className="text-left">לפני מע"מ</TableHead>
+                <TableHead className="text-left">מע"מ</TableHead>
+                <TableHead className="text-left">סה"כ</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -313,21 +306,21 @@ export default async function DocumentDetailPage({ params }: PageProps) {
         <CardContent className="pt-4">
           <dl className="space-y-1 text-sm max-w-xs mr-auto">
             <div className="flex justify-between">
-              <dt className="text-slate-500">סכום לפני מע״מ</dt>
+              <dt className="text-slate-500">סכום לפני מע"מ</dt>
               <dd className="font-medium tabular-nums">
                 {formatCurrency(doc.subtotalAmount.toString())}
               </dd>
             </div>
             {Number(doc.vatRateSnapshot) > 0 && (
               <div className="flex justify-between">
-                <dt className="text-slate-500">מע״מ ({doc.vatRateSnapshot.toString()}%)</dt>
+                <dt className="text-slate-500">מע"מ ({doc.vatRateSnapshot.toString()}%)</dt>
                 <dd className="font-medium tabular-nums">
                   {formatCurrency(doc.taxAmount.toString())}
                 </dd>
               </div>
             )}
             <div className="flex justify-between border-t border-slate-200 pt-1 mt-1">
-              <dt className="font-semibold text-slate-800">סה״כ לתשלום</dt>
+              <dt className="font-semibold text-slate-800">סה"כ לתשלום</dt>
               <dd className="font-bold text-lg tabular-nums text-slate-900">
                 {formatCurrency(doc.totalAmount.toString())}
               </dd>
