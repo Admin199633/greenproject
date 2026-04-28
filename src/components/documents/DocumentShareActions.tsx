@@ -1,7 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import SendDocumentButton from "@/components/documents/SendDocumentButton";
 import { useToast } from "@/components/ui/Toast";
+import { API_BASE } from "@/lib/api-base";
 import {
   buildAbsoluteUrl,
   buildPublicDocumentPdfPath,
@@ -18,6 +20,8 @@ interface Props {
   documentNumber: string;
   publicPdfToken: string;
   totalAmountFormatted: string;
+  approvalUrl?: string | null;
+  canCopyApprovalLink?: boolean;
 }
 
 function WhatsappIcon() {
@@ -43,20 +47,51 @@ export default function DocumentShareActions({
   documentNumber,
   publicPdfToken,
   totalAmountFormatted,
+  approvalUrl,
+  canCopyApprovalLink = false,
 }: Props) {
   const { toast } = useToast();
+  const [approvalLink, setApprovalLink] = useState<string | null>(approvalUrl ?? null);
+  const [isCopyingApprovalLink, setIsCopyingApprovalLink] = useState(false);
+
+  async function getApprovalUrl() {
+    if (approvalLink) {
+      return approvalLink;
+    }
+
+    const res = await fetch(`${API_BASE}/documents/${documentId}/approval-link`, {
+      method: "POST",
+    });
+    const data = (await res.json().catch(() => ({}))) as {
+      approvalUrl?: string;
+      error?: string;
+    };
+
+    if (!res.ok || !data.approvalUrl) {
+      throw new Error(data.error ?? "לא ניתן להפיק קישור אישור");
+    }
+
+    setApprovalLink(data.approvalUrl);
+    return data.approvalUrl;
+  }
 
   async function handleWhatsappShare() {
     const pdfUrl = buildAbsoluteUrl(
       buildPublicDocumentPdfPath(documentId, publicPdfToken),
       window.location.origin
     );
+    const quoteApprovalUrl =
+      documentType === "QUOTE" && canCopyApprovalLink
+        ? await getApprovalUrl()
+        : approvalLink;
+
     const message = buildWhatsappMessage({
       customerName,
       type: documentType,
       documentNumber,
       totalAmount: totalAmountFormatted,
       pdfUrl,
+      approvalUrl: quoteApprovalUrl ?? null,
     });
 
     if (customerPhone?.trim()) {
@@ -82,6 +117,22 @@ export default function DocumentShareActions({
     toast("לא ניתן לשתף ללא מספר טלפון", "error");
   }
 
+  async function handleCopyApprovalLink() {
+    setIsCopyingApprovalLink(true);
+
+    try {
+      const url = await getApprovalUrl();
+      await navigator.clipboard.writeText(url);
+      toast("קישור האישור הועתק ללוח");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "לא ניתן להעתיק את קישור האישור";
+      toast(message, "error");
+    } finally {
+      setIsCopyingApprovalLink(false);
+    }
+  }
+
   return (
     <>
       <a
@@ -102,8 +153,10 @@ export default function DocumentShareActions({
       />
       <button
         onClick={() => {
-          void handleWhatsappShare().catch(() => {
-            toast("שגיאה בשיתוף ב-WhatsApp", "error");
+          void handleWhatsappShare().catch((error) => {
+            const message =
+              error instanceof Error ? error.message : "שגיאה בשיתוף ב-WhatsApp";
+            toast(message, "error");
           });
         }}
         className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-md bg-[#16a34a] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#15803d] sm:min-h-8 sm:w-auto sm:px-4"
@@ -111,6 +164,17 @@ export default function DocumentShareActions({
         <WhatsappIcon />
         <span>שליחה בוואטסאפ</span>
       </button>
+      {canCopyApprovalLink && (
+        <button
+          onClick={() => {
+            void handleCopyApprovalLink();
+          }}
+          disabled={isCopyingApprovalLink}
+          className="inline-flex min-h-[44px] w-full items-center justify-center rounded-md border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-8 sm:w-auto sm:px-3"
+        >
+          {isCopyingApprovalLink ? "מעתיק..." : "העתקת קישור אישור"}
+        </button>
+      )}
     </>
   );
 }

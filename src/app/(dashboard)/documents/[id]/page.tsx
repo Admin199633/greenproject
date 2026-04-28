@@ -55,6 +55,14 @@ export default async function DocumentDetailPage({ params }: PageProps) {
   const publicPdfToken = doc.issuedHash
     ? createPublicPdfToken(doc.id, doc.issuedHash)
     : null;
+  const showQuoteApproval = doc.type === "QUOTE" && doc.status === "ISSUED";
+  const quoteApprovalStatus = showQuoteApproval
+    ? doc.approvedAt
+      ? doc.approvedByName
+        ? `אושרה על ידי ${doc.approvedByName} בתאריך ${formatDate(doc.approvedAt)}`
+        : `אושרה בתאריך ${formatDate(doc.approvedAt)}`
+      : "ממתינה לאישור לקוח"
+    : null;
   const canAddPayment =
     !isDraft &&
     doc.type !== "QUOTE" &&
@@ -104,6 +112,7 @@ export default async function DocumentDetailPage({ params }: PageProps) {
                   documentNumber={doc.number ?? doc.id}
                   publicPdfToken={publicPdfToken}
                   totalAmountFormatted={formatCurrency(doc.totalAmount.toString())}
+                  canCopyApprovalLink={showQuoteApproval && !doc.approvedAt}
                 />
               )}
               {canCreateFromQuote && (
@@ -174,6 +183,9 @@ export default async function DocumentDetailPage({ params }: PageProps) {
                 : []),
               ...(doc.eventTime
                 ? [{ label: "שעת האירוע", value: doc.eventTime }]
+                : []),
+              ...(quoteApprovalStatus
+                ? [{ label: "אישור לקוח", value: quoteApprovalStatus }]
                 : []),
               ...(!isDraft
                 ? [

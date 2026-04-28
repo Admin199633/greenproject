@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
+import { DocumentType } from "@prisma/client";
 import { requireBusiness } from "@/services/auth.service";
-import { issueDraft } from "@/services/document.service";
+import {
+  issueDraft,
+  mintQuoteApprovalToken,
+} from "@/services/document.service";
 import { sendDocumentEmail } from "@/services/email.service";
 import { auditDocumentIssue } from "@/services/audit.service";
 
@@ -13,12 +17,25 @@ export async function POST(req: Request, { params }: RouteCtx) {
     const doc = await issueDraft(id, session.id, session.ownerUserId);
     auditDocumentIssue(doc, session.ownerUserId);
 
-    const origin = new URL(req.url).origin;
-    void sendDocumentEmail(doc.id, session.id, { audience: "issue", origin }).catch(
-      (error) => {
-        console.error("[documents:email] failed", error);
+    let approvalRawToken: string | null = null;
+    if (doc.type === DocumentType.QUOTE) {
+      try {
+        const minted = await mintQuoteApprovalToken(doc.id, session.id);
+        approvalRawToken = minted.rawToken;
+      } catch (error) {
+        // Approval-token mint must never block issue. Log and continue.
+        console.error("[documents:approval] mint failed", error);
       }
-    );
+    }
+
+    const origin = new URL(req.url).origin;
+    void sendDocumentEmail(doc.id, session.id, {
+      audience: "issue",
+      origin,
+      approvalRawToken,
+    }).catch((error) => {
+      console.error("[documents:email] failed", error);
+    });
 
     return NextResponse.json({ id: doc.id, number: doc.number });
   } catch (e) {

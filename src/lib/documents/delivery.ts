@@ -38,6 +38,10 @@ export function buildPublicDocumentPdfPath(documentId: string, token: string) {
   return `${APP_BASE_PATH}/api/public/documents/${documentId}/pdf?token=${encodeURIComponent(token)}`;
 }
 
+export function buildApprovalPagePath(rawToken: string) {
+  return `${APP_BASE_PATH}/approve/${encodeURIComponent(rawToken)}`;
+}
+
 export function buildAbsoluteUrl(path: string, origin?: string | null) {
   const baseOrigin = origin?.trim() || process.env.NEXTAUTH_URL?.trim();
   if (!baseOrigin) {
@@ -60,6 +64,7 @@ export function buildDocumentEmailText(params: {
   documentNumber: string;
   totalAmount: string;
   pdfUrl: string;
+  approvalUrl?: string | null;
 }) {
   const lines = [
     `שלום ${params.customerName},`,
@@ -69,10 +74,21 @@ export function buildDocumentEmailText(params: {
     "",
     "לצפייה או להורדת ה-PDF:",
     params.pdfUrl,
+  ];
+
+  if (params.approvalUrl) {
+    lines.push(
+      "",
+      "לאישור הצעת המחיר באופן מקוון:",
+      params.approvalUrl
+    );
+  }
+
+  lines.push(
     "",
     "לשאלות נוספות נשמח לעמוד לרשותך.",
-    params.businessName,
-  ];
+    params.businessName
+  );
 
   if (params.businessPhone) {
     lines.push(`טלפון: ${params.businessPhone}`);
@@ -95,6 +111,7 @@ export function buildDocumentEmailHtml(params: {
   documentNumber: string;
   totalAmount: string;
   pdfUrl: string;
+  approvalUrl?: string | null;
 }) {
   const customerName = escapeHtml(params.customerName);
   const businessName = escapeHtml(params.businessName);
@@ -102,8 +119,21 @@ export function buildDocumentEmailHtml(params: {
   const documentNumber = escapeHtml(params.documentNumber);
   const totalAmount = escapeHtml(params.totalAmount);
   const pdfUrl = escapeHtml(params.pdfUrl);
+  const approvalUrl = params.approvalUrl ? escapeHtml(params.approvalUrl) : "";
   const logoMarkup = params.businessLogo
     ? `<img src="${escapeHtml(params.businessLogo)}" alt="${businessName}" style="display:block;max-width:96px;max-height:96px;border-radius:18px;margin:0 auto 16px auto;" />`
+    : "";
+
+  const approvalSectionMarkup = approvalUrl
+    ? `
+                <div style="margin:8px 0 28px;text-align:center;">
+                  <a href="${approvalUrl}" style="display:inline-block;background:#0f766e;color:#ffffff;text-decoration:none;font-size:16px;font-weight:700;padding:15px 28px;border-radius:999px;">
+                    אישור הצעת המחיר באופן מקוון
+                  </a>
+                  <div style="margin-top:10px;font-size:13px;color:#64748b;line-height:1.6;">
+                    אפשר לעיין בהצעה ולאשר אותה ישירות מהקישור — ללא צורך בהתחברות.
+                  </div>
+                </div>`
     : "";
 
   const contactLines = [
@@ -159,11 +189,11 @@ export function buildDocumentEmailHtml(params: {
                   </tr>
                 </table>
 
-                <div style="margin:28px 0;text-align:center;">
+                <div style="margin:28px 0 16px;text-align:center;">
                   <a href="${pdfUrl}" style="display:inline-block;background:#16a34a;color:#ffffff;text-decoration:none;font-size:16px;font-weight:700;padding:15px 28px;border-radius:999px;">
                     צפייה / הורדת PDF
                   </a>
-                </div>
+                </div>${approvalSectionMarkup}
 
                 <div style="font-size:15px;line-height:1.8;color:#475569;">
                   לשאלות נוספות נשמח לעמוד לרשותך.
@@ -209,13 +239,20 @@ export function buildWhatsappMessage(params: {
   documentNumber: string;
   totalAmount: string;
   pdfUrl: string;
+  approvalUrl?: string | null;
 }) {
-  return [
+  const lines = [
     `שלום ${params.customerName},`,
     `${getDocumentTypeLabel(params.type)} מספר ${params.documentNumber}`,
     `סכום המסמך: ${params.totalAmount}`,
     `PDF: ${params.pdfUrl}`,
-  ].join("\n");
+  ];
+
+  if (params.approvalUrl) {
+    lines.push(`אישור מקוון: ${params.approvalUrl}`);
+  }
+
+  return lines.join("\n");
 }
 
 export function buildWhatsappShareUrl(phone: string, message: string) {

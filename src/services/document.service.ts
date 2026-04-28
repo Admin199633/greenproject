@@ -2,6 +2,10 @@ import { createHash } from "crypto";
 import { DocumentStatus, DocumentType, Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { perf } from "@/lib/perf";
+import {
+  generateApprovalToken,
+  hashApprovalToken,
+} from "@/lib/documents/approval";
 import type { SaveDraftInput } from "@/lib/validations/document";
 
 type Tx = Prisma.TransactionClient;
@@ -913,4 +917,163 @@ export async function createCreditNoteFromDocument(
 
     throw error;
   }
+}
+
+/**
+ * Mint a new customer-approval token for an issued QUOTE.
+ *
+ * Stores only the SHA-256 hash; the raw token is returned and is the only
+ * place the raw value ever leaves the server (it is then placed inside the
+ * customer-facing approval URL by callers).
+ *
+ * Refuses to mint if the document is not a QUOTE, is not ISSUED, or has
+ * already been approved.
+ */
+export async function mintQuoteApprovalToken(
+  documentId: string,
+  businessId: string
+): Promise<{ rawToken: string }> {
+  const doc = await db.document.findFirst({
+    where: { id: documentId, businessId },
+    select: {
+      id: true,
+      type: true,
+      status: true,
+      approvedAt: true,
+    },
+  });
+
+  if (!doc) throw new Error("Document not found");
+  if (doc.type !== DocumentType.QUOTE) {
+    throw new Error("APPROVAL:Only quotes support customer approval");
+  }
+  if (doc.status !== DocumentStatus.ISSUED) {
+    throw new Error("APPROVAL:Only issued quotes can have an approval link");
+  }
+  if (doc.approvedAt) {
+    throw new Error("APPROVAL:Quote is already approved");
+  }
+
+  const { rawToken, tokenHash } = generateApprovalToken();
+  const now = new Date();
+
+  await db.document.update({
+    where: { id: documentId },
+    data: {
+      approvalTokenHash: tokenHash,
+      approvalTokenCreatedAt: now,
+      approvalTokenExpiresAt: null,
+    },
+  });
+
+  return { rawToken };
+}
+
+/**
+ * Look up an issued QUOTE by its raw approval token. Returns `null` for any
+ * mismatch (no document, wrong type, wrong status, expired token, etc.) so
+ * callers cannot distinguish reasons for failure.
+ */
+export async function findQuoteByApprovalToken(rawToken: string) {
+  const trimmed = rawToken.trim();
+  if (!trimmed) return null;
+
+  const tokenHash = hashApprovalToken(trimmed);
+
+  const doc = await db.document.findFirst({
+    where: {
+      approvalTokenHash: tokenHash,
+      type: DocumentType.QUOTE,
+      status: DocumentStatus.ISSUED,
+    },
+    include: {
+      business: {
+        select: {
+          id: true,
+          name: true,
+          taxId: true,
+          address: true,
+          city: true,
+          postalCode: true,
+          country: true,
+          phone: true,
+          email: true,
+          logo: true,
+        },
+      },
+      customer: true,
+      items: { orderBy: { lineIndex: "asc" } },
+    },
+  });
+
+  if (!doc) return null;
+
+  if (doc.approvalTokenExpiresAt && doc.approvalTokenExpiresAt < new Date()) {
+    return null;
+  }
+
+  return doc;
+}
+
+export interface RecordApprovalInput {
+  approvedByName: string;
+  approvalIp?: string | null;
+  approvalUserAgent?: string | null;
+}
+
+export async function recordQuoteApproval(
+  rawToken: string,
+  input: RecordApprovalInput
+) {
+  const trimmed = rawToken.trim();
+  if (!trimmed) {
+    throw new Error("APPROVAL:Invalid token");
+  }
+
+  const tokenHash = hashApprovalToken(trimmed);
+  const approvedByName = input.approvedByName.trim();
+  if (!approvedByName) {
+    throw new Error("APPROVAL:Approver name is required");
+  }
+
+  return db.$transaction(async (tx) => {
+    const doc = await tx.document.findFirst({
+      where: {
+        approvalTokenHash: tokenHash,
+        type: DocumentType.QUOTE,
+        status: DocumentStatus.ISSUED,
+      },
+      select: {
+        id: true,
+        approvedAt: true,
+        approvalTokenExpiresAt: true,
+      },
+    });
+
+    if (!doc) {
+      throw new Error("APPROVAL:Invalid token");
+    }
+    if (doc.approvalTokenExpiresAt && doc.approvalTokenExpiresAt < new Date()) {
+      throw new Error("APPROVAL:Invalid token");
+    }
+    if (doc.approvedAt) {
+      throw new Error("APPROVAL:Already approved");
+    }
+
+    return tx.document.update({
+      where: { id: doc.id },
+      data: {
+        approvedAt: new Date(),
+        approvedByName,
+        approvalIp: input.approvalIp?.trim() || null,
+        approvalUserAgent: input.approvalUserAgent?.slice(0, 500) || null,
+        approvalTermsAccepted: true,
+      },
+      select: {
+        id: true,
+        approvedAt: true,
+        approvedByName: true,
+      },
+    });
+  });
 }

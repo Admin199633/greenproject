@@ -191,6 +191,19 @@ model Document {
   /// SHA256 hex digest of immutable issued-document data — set at issue time, never changed
   issuedHash  String?  @db.Char(64)
 
+  // ─── Customer-facing online approval (QUOTE only) ──────────────────────────
+  /// SHA-256 hex digest of the active customer-approval token — raw token never stored
+  approvalTokenHash         String?
+  approvalTokenCreatedAt    DateTime?
+  approvalTokenExpiresAt    DateTime?
+  /// Set the moment the customer submits the approval form
+  approvedAt                DateTime?
+  /// Full name typed by the customer at approval time
+  approvedByName            String?
+  approvalIp                String?
+  approvalUserAgent         String?
+  approvalTermsAccepted     Boolean   @default(false)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -201,6 +214,7 @@ model Document {
   @@index([businessId])
   @@index([businessId, status])
   @@index([customerId])
+  @@index([approvalTokenHash])
 }
 
 model DocumentItem {

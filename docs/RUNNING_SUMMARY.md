@@ -1,5 +1,122 @@
 # Running Summary
 
+## Online quote approval without login
+
+Completed the missing customer-approval flow for issued quotes while keeping the existing issue/email/PDF logic in place. The feature now works end to end through a public approval page, a public approval API, dashboard status/actions, and customer-facing delivery links.
+
+### What was completed
+
+- Added the missing client component `src/app/approve/[token]/ApprovalForm.tsx`.
+- Finished the public approval page at `src/app/approve/[token]/page.tsx` so it:
+  - shows a safe invalid-token message: `קישור האישור אינו תקין או שאינו זמין`
+  - shows quote details + approval form for an unapproved issued quote
+  - shows an already-approved state with `approvedByName` and `approvedAt` when available
+  - keeps the public PDF download link available without login
+- Added a quote-only authenticated route `POST /green/api/documents/[id]/approval-link` to mint a fresh approval token and return a full approval URL for dashboard actions.
+- Updated the issued document dashboard actions so issued quotes now support:
+  - approval status display
+  - `העתקת קישור אישור`
+  - WhatsApp sharing that includes an approval link for issued, unapproved quotes
+- Updated manual email sending so customer resend of an issued quote also includes a fresh approval link.
+- Kept the existing public PDF token flow and existing PDF behavior unchanged.
+
+### Files changed
+
+- `src/app/approve/[token]/ApprovalForm.tsx` (new)
+- `src/app/approve/[token]/page.tsx`
+- `src/app/api/public/approve/[token]/route.ts`
+- `src/app/api/documents/[id]/approval-link/route.ts` (new)
+- `src/components/documents/DocumentShareActions.tsx`
+- `src/app/(dashboard)/documents/[id]/page.tsx`
+- `src/services/email.service.ts`
+- `docs/RUNNING_SUMMARY.md`
+
+### Approval token flow
+
+- Approval tokens are still generated with `randomBytes(32)` and are long and unguessable.
+- Only the SHA-256 hash is stored in `Document.approvalTokenHash`; the raw token is never stored in the DB.
+- Issue-time quote emails still use the existing issue flow.
+- When a later dashboard action needs a customer approval link and the raw token is no longer available, the new authenticated route mints a fresh token and returns the approval URL.
+- Minting a fresh token replaces the old hash in the document row, invalidating the old approval link without storing any raw token.
+- Raw tokens are not logged.
+
+### Approval page behavior
+
+- Public approval page works without login.
+- It only resolves tokens that belong to `ISSUED` `QUOTE` documents.
+- Invalid / wrong-type / wrong-status / expired cases collapse to the same safe message.
+- If the quote is already approved, the form is hidden and the page shows:
+  - `הצעת המחיר כבר אושרה`
+  - `approvedByName` when present
+  - `approvedAt` when present
+- If the quote is not approved, the page shows:
+  - business details
+  - quote number
+  - issue date
+  - customer details
+  - event details when present
+  - service/items summary
+  - total amount
+  - terms and conditions
+  - public PDF download link
+  - approval form with checkbox + full name
+
+### Dashboard status and action behavior
+
+- Issued `QUOTE` pages now show approval status only for quotes:
+  - `ממתינה לאישור לקוח`
+  - `אושרה על ידי <name> בתאריך <date>` when approved
+- Non-quote documents do not show approval status or approval actions.
+- Issued, unapproved quotes now show `העתקת קישור אישור` in the existing action area, alongside the existing PDF/email/WhatsApp actions.
+
+### Email and WhatsApp behavior
+
+- Issue-time document email flow remains in place.
+- For `QUOTE` documents:
+  - business email copy includes the approval link during issue-time delivery
+  - customer email copy includes the public PDF link and the approval link
+  - manual customer resend also mints/includes a fresh approval link when the quote is still unapproved
+  - WhatsApp sharing includes the public PDF link and approval link for issued, unapproved quotes
+- Customer-facing flows do not send dashboard/app-login links.
+
+### Public PDF behavior
+
+- Public PDF access still uses the existing HMAC token derived from `document.id` + `issuedHash`.
+- The approval page builds its PDF link with that existing mechanism.
+- Draft documents are still not exposed.
+- Unrelated documents are still not exposed.
+
+### Required DB command
+
+Production still needs the Prisma schema sync for the approval columns:
+
+```bash
+npx prisma db push
+```
+
+Do not run destructive DB operations.
+
+### Verification
+
+- `npm run build`
+- `npx tsc --noEmit`
+
+### Manual test checklist
+
+1. Create quote draft.
+2. Issue quote.
+3. Confirm PDF still downloads.
+4. Confirm customer email includes approval link if customer email exists.
+5. Confirm business email includes approval link.
+6. Open approval link in incognito.
+7. Verify quote can be viewed without login.
+8. Approve with checkbox + full name.
+9. Verify success message.
+10. Reopen same link and verify already-approved message.
+11. Verify dashboard quote page shows approved status.
+12. Verify WhatsApp message includes approval link.
+13. Verify non-quote documents do not show approval flow.
+
 ## Forgot password / reset password flow
 
 A user who cannot remember their password can now request a reset email and pick a new password from a one-time, time-limited link. Existing login and registration flows are unchanged.

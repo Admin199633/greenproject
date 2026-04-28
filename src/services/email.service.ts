@@ -1,7 +1,9 @@
+import { DocumentType } from "@prisma/client";
 import nodemailer, { type Transporter } from "nodemailer";
 import { db } from "@/lib/db";
 import {
   buildAbsoluteUrl,
+  buildApprovalPagePath,
   buildDocumentEmailHtml,
   buildDocumentEmailSubject,
   buildDocumentEmailText,
@@ -10,7 +12,10 @@ import {
 } from "@/lib/documents/delivery";
 import { createPublicPdfToken } from "@/lib/documents/public-pdf";
 import { renderDocumentPdf } from "@/lib/pdf/document-pdf";
-import { getDocumentById } from "@/services/document.service";
+import {
+  getDocumentById,
+  mintQuoteApprovalToken,
+} from "@/services/document.service";
 
 const SENDABLE_STATUSES = new Set(["ISSUED", "PARTIALLY_PAID", "PAID"]);
 
@@ -52,7 +57,15 @@ function getCustomerDisplayName(document: Awaited<ReturnType<typeof getDocumentB
 export async function sendDocumentEmail(
   documentId: string,
   businessId: string,
-  options?: { origin?: string | null; audience?: DeliveryAudience }
+  options?: {
+    origin?: string | null;
+    audience?: DeliveryAudience;
+    /**
+     * Raw approval token to include in the email body. Only relevant for QUOTE
+     * documents. When omitted (or `null`), no approval link is added.
+     */
+    approvalRawToken?: string | null;
+  }
 ): Promise<{ sent: boolean; to: string[]; attachedPdf: boolean }> {
   const audience = options?.audience ?? "issue";
   const document = await getDocumentById(documentId, businessId);
@@ -88,6 +101,26 @@ export async function sendDocumentEmail(
     buildPublicDocumentPdfPath(document.id, publicPdfToken),
     options?.origin
   );
+  let approvalRawToken = options?.approvalRawToken ?? null;
+  if (
+    document.type === DocumentType.QUOTE &&
+    !document.approvedAt &&
+    !approvalRawToken
+  ) {
+    try {
+      const minted = await mintQuoteApprovalToken(document.id, businessId);
+      approvalRawToken = minted.rawToken;
+    } catch (error) {
+      console.error("[documents:approval] mint failed", error);
+    }
+  }
+  const approvalUrl =
+    document.type === DocumentType.QUOTE && approvalRawToken
+      ? buildAbsoluteUrl(
+          buildApprovalPagePath(approvalRawToken),
+          options?.origin
+        )
+      : null;
   const subject = buildDocumentEmailSubject(document.type, documentNumber);
   const filename = buildFilename(document.number, document.id);
   const totalAmount = formatDocumentTotal(
@@ -127,6 +160,7 @@ export async function sendDocumentEmail(
     documentNumber,
     totalAmount,
     pdfUrl,
+    approvalUrl,
   });
   const htmlBody = buildDocumentEmailHtml({
     customerName: customerDisplayName,
@@ -139,6 +173,7 @@ export async function sendDocumentEmail(
     documentNumber,
     totalAmount,
     pdfUrl,
+    approvalUrl,
   });
 
   async function deliverTo(transporter: Transporter, recipient: string) {
