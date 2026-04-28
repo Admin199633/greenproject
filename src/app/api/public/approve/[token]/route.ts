@@ -5,6 +5,9 @@ import { recordQuoteApproval } from "@/services/document.service";
 type RouteCtx = { params: Promise<{ token: string }> };
 
 const SAFE_INVALID_TOKEN_MESSAGE = "קישור האישור אינו תקין או שאינו זמין";
+const MAX_SIGNATURE_DATA_URL_LENGTH = 300_000;
+const SIGNATURE_DATA_URL_PATTERN =
+  /^data:image\/(?:png|jpeg|jpg|webp);base64,[A-Za-z0-9+/=]+$/;
 
 const bodySchema = z.object({
   approvedByName: z
@@ -13,6 +16,15 @@ const bodySchema = z.object({
     .min(2, "יש להזין שם מלא")
     .max(120, "שם מלא ארוך מדי"),
   termsAccepted: z.literal(true).optional(),
+  signatureDataUrl: z
+    .string()
+    .trim()
+    .max(MAX_SIGNATURE_DATA_URL_LENGTH, "החתימה גדולה מדי")
+    .refine(
+      (value) => SIGNATURE_DATA_URL_PATTERN.test(value),
+      "פורמט החתימה לא תקין"
+    )
+    .optional(),
 });
 
 function getClientIp(req: Request): string | null {
@@ -47,6 +59,7 @@ export async function POST(req: Request, { params }: RouteCtx) {
       approvedByName: parsed.data.approvedByName,
       approvalIp: getClientIp(req),
       approvalUserAgent: req.headers.get("user-agent"),
+      approvalSignatureDataUrl: parsed.data.signatureDataUrl,
     });
 
     return NextResponse.json({

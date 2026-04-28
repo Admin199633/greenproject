@@ -219,6 +219,18 @@ export default async function DocumentDetailPage({ params }: PageProps) {
               </p>
             </div>
           )}
+          {showQuoteApproval && doc.approvedAt && doc.approvalSignatureDataUrl && (
+            <div className="mt-4 border-t border-slate-100 pt-4">
+              <p className="mb-2 text-xs font-medium text-slate-500">חתימת לקוח</p>
+              <div className="inline-flex rounded-xl border border-slate-200 bg-white p-3">
+                <img
+                  src={doc.approvalSignatureDataUrl}
+                  alt="חתימת לקוח"
+                  className="h-20 w-48 object-contain"
+                />
+              </div>
+            </div>
+          )}
 
           {(doc.sourceDocument || doc.creditNote) && (
             <div className="mt-4 space-y-2 border-t border-slate-100 pt-4 text-sm">

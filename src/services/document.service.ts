@@ -1019,6 +1019,7 @@ export interface RecordApprovalInput {
   approvedByName: string;
   approvalIp?: string | null;
   approvalUserAgent?: string | null;
+  approvalSignatureDataUrl?: string | null;
 }
 
 export async function recordQuoteApproval(
@@ -1032,6 +1033,7 @@ export async function recordQuoteApproval(
 
   const tokenHash = hashApprovalToken(trimmed);
   const approvedByName = input.approvedByName.trim();
+  const approvalSignatureDataUrl = input.approvalSignatureDataUrl?.trim() || null;
   if (!approvedByName) {
     throw new Error("APPROVAL:Approver name is required");
   }
@@ -1067,12 +1069,14 @@ export async function recordQuoteApproval(
         approvedByName,
         approvalIp: input.approvalIp?.trim() || null,
         approvalUserAgent: input.approvalUserAgent?.slice(0, 500) || null,
+        approvalSignatureDataUrl,
         approvalTermsAccepted: true,
       },
       select: {
         id: true,
         approvedAt: true,
         approvedByName: true,
+        approvalSignatureDataUrl: true,
       },
     });
   });

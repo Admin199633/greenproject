@@ -4,6 +4,8 @@
 
 Completed the missing customer-approval flow for issued quotes while keeping the existing issue/email/PDF logic in place. The feature now works end to end through a public approval page, a public approval API, dashboard status/actions, and customer-facing delivery links.
 
+The approval flow now also supports an optional customer signature. Signature capture is available on the public approval page, remains login-free, and is saved alongside the existing approval metadata when provided.
+
 ### What was completed
 
 - Added the missing client component `src/app/approve/[token]/ApprovalForm.tsx`.
@@ -19,6 +21,7 @@ Completed the missing customer-approval flow for issued quotes while keeping the
   - WhatsApp sharing that includes an approval link for issued, unapproved quotes
 - Updated manual email sending so customer resend of an issued quote also includes a fresh approval link.
 - Kept the existing public PDF token flow and existing PDF behavior unchanged.
+- Added optional signature capture and storage for quote approvals.
 
 ### Files changed
 
@@ -29,6 +32,8 @@ Completed the missing customer-approval flow for issued quotes while keeping the
 - `src/components/documents/DocumentShareActions.tsx`
 - `src/app/(dashboard)/documents/[id]/page.tsx`
 - `src/services/email.service.ts`
+- `prisma/schema.prisma`
+- `src/services/document.service.ts`
 - `docs/RUNNING_SUMMARY.md`
 
 ### Approval token flow
@@ -45,6 +50,12 @@ Completed the missing customer-approval flow for issued quotes while keeping the
 - Public approval page works without login.
 - It only resolves tokens that belong to `ISSUED` `QUOTE` documents.
 - Invalid / wrong-type / wrong-status / expired cases collapse to the same safe message.
+- The approval form now includes:
+  - required full name
+  - required approval checkbox
+  - optional signature area labeled `חתימה`
+  - `נקה חתימה` action
+- Signature can be drawn with finger or mouse and is mobile-friendly.
 - If the quote is already approved, the form is hidden and the page shows:
   - `הצעת המחיר כבר אושרה`
   - `approvedByName` when present
@@ -60,6 +71,19 @@ Completed the missing customer-approval flow for issued quotes while keeping the
   - terms and conditions
   - public PDF download link
   - approval form with checkbox + full name
+  - optional signature pad
+
+### Signature behavior
+
+- Signature is optional in this version to keep the flow stable.
+- If provided, it is sent as a `data:image/...;base64,...` string and saved on the document.
+- If omitted, approval still succeeds as long as the checkbox and full name are provided.
+- Dashboard issued-quote page now shows a small signature preview when the quote has been approved with a signature.
+- Quote PDF generation was not changed, so existing PDF behavior remains intact.
+
+### DB field added
+
+- `Document.approvalSignatureDataUrl String? @db.Text`
 
 ### Dashboard status and action behavior
 
@@ -85,6 +109,13 @@ Completed the missing customer-approval flow for issued quotes while keeping the
 - The approval page builds its PDF link with that existing mechanism.
 - Draft documents are still not exposed.
 - Unrelated documents are still not exposed.
+
+### Security
+
+- Signature payloads are not logged.
+- The approval API only accepts image data URLs for signatures.
+- Signature payload size is capped to reject oversized submissions.
+- Signature can only be saved during the first successful approval because double approval remains blocked.
 
 ### Required DB command
 
@@ -116,6 +147,8 @@ Do not run destructive DB operations.
 11. Verify dashboard quote page shows approved status.
 12. Verify WhatsApp message includes approval link.
 13. Verify non-quote documents do not show approval flow.
+14. Open approval link on mobile, sign with finger, approve, and reload the link.
+15. Verify dashboard shows the saved signature preview.
 
 ## Forgot password / reset password flow
 
