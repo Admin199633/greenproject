@@ -233,6 +233,24 @@ export function normalizeWhatsappPhone(phone: string) {
   return normalized;
 }
 
+export function buildApprovalWhatsappMessage(params: {
+  customerName: string;
+  approvalUrl: string;
+}) {
+  return [
+    `היי ${params.customerName},`,
+    "",
+    "שלחתי לך הצעת מחיר מפוטופ עבור האירוע שלך.",
+    "",
+    "ניתן לצפות בפרטי ההצעה ולאשר אותה בקישור הבא:",
+    params.approvalUrl,
+    "",
+    "אישור ההצעה שומר עבורך את התאריך.",
+    "",
+    "לכל שאלה אני כאן ",
+  ].join("\n");
+}
+
 export function buildWhatsappMessage(params: {
   customerName: string;
   type: string;
@@ -256,7 +274,9 @@ export function buildWhatsappMessage(params: {
 }
 
 export function buildWhatsappShareUrl(phone: string, message: string) {
-  return `https://wa.me/${normalizeWhatsappPhone(phone)}?text=${encodeURIComponent(message)}`;
+  const normalizedPhone = phone.trim() ? normalizeWhatsappPhone(phone) : "";
+  const phonePath = normalizedPhone ? `/${normalizedPhone}` : "/";
+  return `https://wa.me${phonePath}?text=${encodeURIComponent(message)}`;
 }
 
 export function formatDocumentTotal(amount: string, currency: string) {

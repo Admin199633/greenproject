@@ -34,6 +34,24 @@ describe("document delivery helpers", () => {
     expect(url).toBe("https://wa.me/972501234567?text=hello%20world");
   });
 
+  it("builds an approval whatsapp message", async () => {
+    const { buildApprovalWhatsappMessage } = await import("@/lib/documents/delivery");
+
+    expect(
+      buildApprovalWhatsappMessage({
+        customerName: "דנה",
+        approvalUrl: "https://app.example.com/green/approve/token-1",
+      })
+    ).toContain("אישור ההצעה שומר עבורך את התאריך.");
+  });
+
+  it("builds a whatsapp share url without a phone", async () => {
+    const { buildWhatsappShareUrl } = await import("@/lib/documents/delivery");
+    const url = buildWhatsappShareUrl("", "hello world");
+
+    expect(url).toBe("https://wa.me/?text=hello%20world");
+  });
+
   it("renders a premium html email with a public pdf cta", async () => {
     const { buildDocumentEmailHtml } = await import("@/lib/documents/delivery");
     const html = buildDocumentEmailHtml({

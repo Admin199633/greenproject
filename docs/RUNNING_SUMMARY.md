@@ -73,12 +73,12 @@ The public approval page was also redesigned to feel more premium and boutique, 
   - issue date
   - customer details
   - event details when present
-  - service/items summary
+  - service/items summary with 24-hour event time formatting
   - package-level price summary only (`כמות`, `מחיר יחידה`, `סה"כ לחבילה`)
   - terms and conditions behind a modal trigger instead of a long inline block
-  - public PDF download link
+  - a simple public PDF download button instead of a large dedicated PDF card
   - approval form with checkbox + full name
-  - optional signature pad
+  - required signature pad before submit
 
 ### Approval page redesign
 
@@ -94,6 +94,10 @@ The public approval page was also redesigned to feel more premium and boutique, 
 - Improved mobile spacing, hierarchy, and card rhythm while keeping RTL and avoiding horizontal overflow.
 - Moved `תנאים והערות` from an inline section into a scrollable modal / bottom-sheet trigger to shorten the mobile page.
 - Removed the duplicate aside total summary card so the page keeps only the package card summary.
+- Normalized event-time display to a consistent 24-hour format across the approval page, dashboard document view, and quote PDF.
+- Changed the quote approval share action so `העתקת קישור אישור` now opens WhatsApp with a prefilled approval message and falls back to `wa.me/?text=...` when no phone is available.
+- Made customer signature required in the public approval form and added the validation message `יש לחתום לפני אישור ההצעה`.
+- Removed the full `קובץ ההצעה` card from the approval page and kept only a lightweight `צפייה / הורדת PDF` button.
 
 ### Service package parsing and display
 

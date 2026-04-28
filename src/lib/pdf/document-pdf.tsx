@@ -26,6 +26,7 @@ import {
   type DocumentStatusValue,
   type DocumentTypeValue,
 } from "@/lib/validations/document";
+import { formatEventTime } from "@/lib/utils";
 
 const EMPTY_VALUE = "—";
 
@@ -810,7 +811,7 @@ function QuotePage({ business, document }: BuildPdfInput) {
 
   const eventLocation = sanitizeText(document.eventLocation);
   const eventDate = document.eventDate ? formatDate(document.eventDate) : "";
-  const eventTime = sanitizeText(document.eventTime);
+  const eventTime = formatEventTime(sanitizeText(document.eventTime));
   const hasEvent = Boolean(eventLocation || eventDate || eventTime);
 
   const docNumber = safeOrDash(document.number ?? document.id);
@@ -1040,6 +1041,10 @@ function LegacyPage({ business, document }: BuildPdfInput) {
   const customerTaxId = valueOrDash(document.customerTaxId ?? document.customer.taxId);
   const customerAddress = valueOrDash(document.customerAddress ?? document.customer.address);
   const customerEmail = valueOrDash(document.customerEmail ?? document.customer.email);
+  const eventTime = formatEventTime(sanitizeText(document.eventTime));
+  if (document.eventTime) {
+    document.eventTime = eventTime;
+  }
 
   const typeLabel = getPdfDocumentTypeLabel(document.type, business.taxType);
   const statusLabel =
@@ -1084,7 +1089,7 @@ function LegacyPage({ business, document }: BuildPdfInput) {
       </View>
 
       {/* Photography quote fields — rendered when present */}
-      {(document.eventDate || document.eventLocation || document.eventHours != null || document.eventTime) && (
+      {(document.eventDate || document.eventLocation || document.eventHours != null || eventTime) && (
         <View style={styles.section} wrap={false}>
           <Text style={styles.sectionTitle}>פרטי האירוע</Text>
           <View style={styles.twoCols}>
@@ -1098,7 +1103,7 @@ function LegacyPage({ business, document }: BuildPdfInput) {
                 <Field label="מיקום" value={sanitizeText(document.eventLocation)} />
               </View>
             ) : null}
-            {document.eventTime ? (
+            {eventTime ? (
               <View style={styles.col}>
                 <Field label="שעת האירוע" value={sanitizeText(document.eventTime)} />
               </View>

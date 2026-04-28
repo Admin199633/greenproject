@@ -57,7 +57,7 @@ export default function QuoteTermsModal({
           <button
             type="button"
             onClick={() => setIsOpen(true)}
-            className="mt-5 inline-flex min-h-[48px] items-center justify-center rounded-2xl border border-[#d8c3ad] bg-white px-5 text-sm font-semibold text-slate-800 shadow-[0_14px_34px_rgba(182,138,98,0.12)] transition-colors hover:bg-[#fff8f1]"
+            className="mt-5 inline-flex min-h-[48px] w-full items-center justify-center rounded-2xl border border-[#d8c3ad] bg-white px-5 text-sm font-semibold text-slate-800 shadow-[0_14px_34px_rgba(182,138,98,0.12)] transition-colors hover:bg-[#fff8f1] sm:w-auto"
           >
             צפייה בתנאים
           </button>
@@ -66,7 +66,7 @@ export default function QuoteTermsModal({
         <button
           type="button"
           onClick={() => setIsOpen(true)}
-          className="min-h-[44px] shrink-0 rounded-xl px-3 text-sm font-medium text-[#8a6648] underline decoration-[#c9a57e] decoration-2 underline-offset-4 transition-colors hover:text-[#6b4c34]"
+          className="min-h-[44px] w-full rounded-xl px-3 text-sm font-medium text-[#8a6648] underline decoration-[#c9a57e] decoration-2 underline-offset-4 transition-colors hover:text-[#6b4c34] sm:w-auto"
         >
           קריאת התנאים
         </button>

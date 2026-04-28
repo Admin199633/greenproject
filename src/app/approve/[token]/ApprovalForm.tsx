@@ -152,6 +152,12 @@ export default function ApprovalForm({
       return;
     }
 
+    if (!signatureDataUrl) {
+      setState("error");
+      setError("יש לחתום לפני אישור ההצעה");
+      return;
+    }
+
     setState("loading");
     setError("");
 
@@ -163,7 +169,7 @@ export default function ApprovalForm({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             approvedByName: trimmedName,
-            signatureDataUrl: signatureDataUrl ?? undefined,
+            signatureDataUrl,
           }),
         }
       );
@@ -206,7 +212,7 @@ export default function ApprovalForm({
           אישור ההצעה
         </h2>
         <p className="mt-3 text-sm leading-8 text-slate-600">
-          יש לעבור על הפרטים, לאשר את התנאים ולמלא את שמך המלא לפני שליחת
+          יש לעבור על הפרטים, לאשר את התנאים, למלא את שמך המלא ולחתום לפני שליחת
           האישור.
         </p>
       </div>
@@ -231,20 +237,20 @@ export default function ApprovalForm({
         </div>
 
         <div className="rounded-[1.5rem] border border-[#ece1d5] bg-white/90 p-4 shadow-[0_12px_30px_rgba(148,163,184,0.08)] sm:p-5">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <label className="block text-sm font-medium text-slate-800">
                 חתימה
               </label>
               <p className="mt-1 text-xs leading-6 text-slate-500">
-                חתימה אופציונלית עם האצבע או עם העכבר.
+                יש לחתום עם האצבע או עם העכבר לפני אישור ההצעה.
               </p>
             </div>
             <button
               type="button"
               onClick={clearSignature}
               disabled={state === "loading"}
-              className="min-h-[44px] shrink-0 rounded-xl border border-[#eadfd3] bg-[#fffaf5] px-4 text-sm font-medium text-slate-700 transition-colors hover:bg-[#fff3e6] disabled:cursor-not-allowed disabled:opacity-50"
+              className="min-h-[44px] w-full rounded-xl border border-[#eadfd3] bg-[#fffaf5] px-4 text-sm font-medium text-slate-700 transition-colors hover:bg-[#fff3e6] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
             >
               נקה חתימה
             </button>

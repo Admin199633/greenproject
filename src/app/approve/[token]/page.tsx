@@ -1,6 +1,6 @@
 import { buildPublicDocumentPdfPath } from "@/lib/documents/delivery";
 import { createPublicPdfToken } from "@/lib/documents/public-pdf";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate, formatEventTime } from "@/lib/utils";
 import { findQuoteByApprovalToken } from "@/services/document.service";
 import ApprovalForm from "./ApprovalForm";
 import QuoteTermsModal from "./QuoteTermsModal";
@@ -103,12 +103,13 @@ export default async function ApprovePage({ params }: PageProps) {
     .filter((part) => part && part.trim())
     .join(", ");
   const isApproved = Boolean(doc.approvedAt);
+  const formattedEventTime = formatEventTime(doc.eventTime);
   const detailTiles = [
     { label: "לקוח", value: customerName },
     ...(doc.customerEmail ? [{ label: "אימייל", value: doc.customerEmail }] : []),
     ...(doc.customer.phone ? [{ label: "טלפון", value: doc.customer.phone }] : []),
     ...(doc.eventDate ? [{ label: "תאריך האירוע", value: formatDate(doc.eventDate) }] : []),
-    ...(doc.eventTime ? [{ label: "שעת האירוע", value: doc.eventTime }] : []),
+    ...(formattedEventTime ? [{ label: "שעת האירוע", value: formattedEventTime }] : []),
     ...(doc.eventLocation ? [{ label: "מיקום האירוע", value: doc.eventLocation }] : []),
   ];
 
@@ -222,7 +223,18 @@ export default async function ApprovePage({ params }: PageProps) {
           </div>
         </section>
 
-        <section className="grid gap-5 lg:grid-cols-[minmax(0,1.55fr)_minmax(280px,0.85fr)]">
+        <section className="space-y-5">
+          <div className="flex">
+            <a
+              href={pdfHref}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex min-h-[48px] w-full items-center justify-center rounded-2xl border border-[#d8c3ad] bg-white px-4 text-sm font-semibold text-slate-800 shadow-[0_12px_30px_rgba(182,138,98,0.10)] transition-colors hover:bg-[#fff8f1] sm:w-auto"
+            >
+              צפייה / הורדת PDF
+            </a>
+          </div>
+
           <div className="space-y-5">
             {doc.items.map((item, index) => {
               const parsed = parseItemDescription(item.description);
@@ -292,28 +304,6 @@ export default async function ApprovePage({ params }: PageProps) {
               />
             )}
           </div>
-
-          <aside className="space-y-5">
-            <section className="rounded-[2rem] border border-[#eadfd3] bg-white/90 p-5 shadow-[0_24px_70px_rgba(15,23,42,0.06)] ring-1 ring-white/70 sm:p-7">
-              <p className="text-[11px] font-medium tracking-[0.22em] text-[#9a7b5c]">
-                קובץ ההצעה
-              </p>
-              <h2 className="mt-3 text-xl font-semibold text-slate-900">
-                צפייה במסמך המקורי
-              </h2>
-              <p className="mt-3 text-sm leading-7 text-slate-600">
-                ניתן לצפות או להוריד את קובץ ה-PDF המקורי של ההצעה בכל שלב.
-              </p>
-              <a
-                href={pdfHref}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-6 inline-flex min-h-[48px] w-full items-center justify-center rounded-2xl border border-[#d8c3ad] bg-[linear-gradient(180deg,#fffaf5_0%,#fff3e7_100%)] px-4 text-sm font-semibold text-slate-800 shadow-[0_16px_40px_rgba(182,138,98,0.14)] transition-transform duration-200 hover:-translate-y-0.5 hover:bg-[#fff5eb]"
-              >
-                צפייה / הורדת PDF
-              </a>
-            </section>
-          </aside>
         </section>
 
         {!isApproved && (

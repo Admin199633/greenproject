@@ -26,7 +26,7 @@ import DocumentShareActions from "@/components/documents/DocumentShareActions";
 import AddPaymentForm from "@/components/payments/AddPaymentForm";
 import DeletePaymentButton from "@/components/payments/DeletePaymentButton";
 import { createPublicPdfToken } from "@/lib/documents/public-pdf";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate, formatEventTime } from "@/lib/utils";
 import { PAYMENT_METHOD_LABELS, type PaymentMethod } from "@/lib/validations/payment";
 
 interface PageProps {
@@ -39,6 +39,10 @@ export default async function DocumentDetailPage({ params }: PageProps) {
   const doc = await getDocumentById(id, business.id);
 
   if (!doc) notFound();
+
+  if (doc.eventTime) {
+    doc.eventTime = formatEventTime(doc.eventTime);
+  }
 
   const isDraft = doc.status === "DRAFT";
   const canCancelDocument = doc.status === "ISSUED" && doc.amountPaid.eq(0);

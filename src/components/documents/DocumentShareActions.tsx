@@ -6,6 +6,7 @@ import { useToast } from "@/components/ui/Toast";
 import { API_BASE } from "@/lib/api-base";
 import {
   buildAbsoluteUrl,
+  buildApprovalWhatsappMessage,
   buildPublicDocumentPdfPath,
   buildWhatsappMessage,
   buildWhatsappShareUrl,
@@ -94,27 +95,11 @@ export default function DocumentShareActions({
       approvalUrl: quoteApprovalUrl ?? null,
     });
 
-    if (customerPhone?.trim()) {
-      window.open(
-        buildWhatsappShareUrl(customerPhone, message),
-        "_blank",
-        "noopener,noreferrer"
-      );
-      return;
-    }
-
-    if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(message);
-      toast("הודעת הוואטסאפ הועתקה ללוח");
-      return;
-    }
-
-    if (navigator.share) {
-      await navigator.share({ text: message });
-      return;
-    }
-
-    toast("לא ניתן לשתף ללא מספר טלפון", "error");
+    window.open(
+      buildWhatsappShareUrl(customerPhone?.trim() ?? "", message),
+      "_blank",
+      "noopener,noreferrer"
+    );
   }
 
   async function handleCopyApprovalLink() {
@@ -122,11 +107,24 @@ export default function DocumentShareActions({
 
     try {
       const url = await getApprovalUrl();
-      await navigator.clipboard.writeText(url);
-      toast("קישור האישור הועתק ללוח");
+      const message = buildApprovalWhatsappMessage({
+        customerName,
+        approvalUrl: url,
+      });
+
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+      }
+
+      window.open(
+        buildWhatsappShareUrl(customerPhone?.trim() ?? "", message),
+        "_blank",
+        "noopener,noreferrer"
+      );
+      toast("קישור האישור הוכן ונפתח ב-WhatsApp");
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "לא ניתן להעתיק את קישור האישור";
+        error instanceof Error ? error.message : "לא ניתן לשתף את קישור האישור";
       toast(message, "error");
     } finally {
       setIsCopyingApprovalLink(false);
@@ -149,7 +147,7 @@ export default function DocumentShareActions({
       <SendDocumentButton
         documentId={documentId}
         customerEmail={customerEmail}
-        className="sm:w-auto"
+        className="w-full sm:w-auto"
       />
       <button
         onClick={() => {
@@ -162,7 +160,7 @@ export default function DocumentShareActions({
         className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-md bg-[#16a34a] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#15803d] sm:min-h-8 sm:w-auto sm:px-4"
       >
         <WhatsappIcon />
-        <span>שליחה בוואטסאפ</span>
+        <span>שליחה ב-WhatsApp</span>
       </button>
       {canCopyApprovalLink && (
         <button
@@ -172,7 +170,7 @@ export default function DocumentShareActions({
           disabled={isCopyingApprovalLink}
           className="inline-flex min-h-[44px] w-full items-center justify-center rounded-md border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-8 sm:w-auto sm:px-3"
         >
-          {isCopyingApprovalLink ? "מעתיק..." : "העתקת קישור אישור"}
+          {isCopyingApprovalLink ? "טוען..." : "העתקת קישור אישור"}
         </button>
       )}
     </>
