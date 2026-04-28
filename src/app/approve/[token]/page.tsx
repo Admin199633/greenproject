@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { buildPublicDocumentPdfPath } from "@/lib/documents/delivery";
 import { createPublicPdfToken } from "@/lib/documents/public-pdf";
@@ -12,26 +11,74 @@ interface PageProps {
   params: Promise<{ token: string }>;
 }
 
+function parseItemDescription(description: string) {
+  const lines = description
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (lines.length === 0) {
+    return { title: "שירות", bullets: [] as string[] };
+  }
+
+  const normalizeBullet = (value: string) =>
+    value.replace(/^[•●▪◦·*\-]+\s*/, "").trim();
+
+  const [firstLine, ...rest] = lines;
+  const title = normalizeBullet(firstLine) || "שירות";
+  const bullets = rest.flatMap((line) => {
+    const parts = line
+      .split(/\s*[•●▪◦·]\s*/g)
+      .map((part) => normalizeBullet(part))
+      .filter(Boolean);
+    return parts.length > 0 ? parts : [normalizeBullet(line)].filter(Boolean);
+  });
+
+  return { title, bullets };
+}
+
 function InvalidTokenView() {
   return (
     <main
       dir="rtl"
-      className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-10"
+      className="min-h-screen bg-[linear-gradient(180deg,#f8f3ee_0%,#f8fafc_52%,#ffffff_100%)] px-4 py-10"
     >
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle className="text-center text-xl text-slate-800">
+      <div className="mx-auto flex min-h-[70vh] max-w-lg items-center justify-center">
+        <section className="w-full rounded-[2rem] border border-white/70 bg-white/90 p-8 text-center shadow-[0_24px_90px_rgba(15,23,42,0.09)] ring-1 ring-slate-200/70 backdrop-blur">
+          <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-amber-50 text-amber-700 ring-1 ring-amber-100">
+            <span className="text-xl">?</span>
+          </div>
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
             לא נמצאה הצעת מחיר
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4 text-center text-sm leading-relaxed text-slate-600">
-          <p>קישור האישור אינו תקין או שאינו זמין</p>
-          <p className="text-xs text-slate-500">
+          </h1>
+          <p className="mt-4 text-sm leading-7 text-slate-600">
+            קישור האישור אינו תקין או שאינו זמין.
+          </p>
+          <p className="mt-2 text-sm leading-7 text-slate-500">
             יש לפנות לעסק שהפיק את ההצעה לקבלת קישור עדכני.
           </p>
-        </CardContent>
-      </Card>
+        </section>
+      </div>
     </main>
+  );
+}
+
+function DetailTile({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-[#e7ddd2] bg-[#fffdfa] px-4 py-4 shadow-[0_10px_30px_rgba(148,163,184,0.08)]">
+      <p className="text-[11px] font-medium tracking-[0.18em] text-[#9a7b5c]">
+        {label}
+      </p>
+      <p className="mt-2 text-sm font-medium leading-7 text-slate-800">
+        {value}
+      </p>
+    </div>
   );
 }
 
@@ -55,226 +102,263 @@ export default async function ApprovePage({ params }: PageProps) {
     .filter((part) => part && part.trim())
     .join(", ");
   const isApproved = Boolean(doc.approvedAt);
+  const detailTiles = [
+    { label: "לקוח", value: customerName },
+    ...(doc.customerEmail ? [{ label: "אימייל", value: doc.customerEmail }] : []),
+    ...(doc.customer.phone ? [{ label: "טלפון", value: doc.customer.phone }] : []),
+    ...(doc.eventDate ? [{ label: "תאריך האירוע", value: formatDate(doc.eventDate) }] : []),
+    ...(doc.eventTime ? [{ label: "שעת האירוע", value: doc.eventTime }] : []),
+    ...(doc.eventLocation ? [{ label: "מיקום האירוע", value: doc.eventLocation }] : []),
+  ];
 
   return (
     <main
       dir="rtl"
-      className="min-h-screen overflow-x-hidden bg-slate-50 px-3 py-6 sm:px-4 sm:py-10"
+      className="min-h-screen overflow-x-hidden bg-[linear-gradient(180deg,#f6efe8_0%,#f8f5f1_18%,#fbfcfd_46%,#ffffff_100%)] px-3 py-6 sm:px-4 sm:py-10"
     >
-      <div className="mx-auto flex w-full max-w-2xl flex-col gap-4">
-        <header className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 sm:p-7">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-            הצעת מחיר
-          </p>
-          <h1 className="mt-1 text-2xl font-bold text-slate-900 sm:text-3xl">
-            {business.name}
-          </h1>
-          <dl className="mt-3 grid grid-cols-1 gap-y-1 text-sm text-slate-600 sm:grid-cols-2 sm:gap-x-6">
-            {business.phone && (
-              <div className="flex justify-between gap-3 sm:block">
-                <dt className="text-slate-500">טלפון</dt>
-                <dd className="font-medium text-slate-700">{business.phone}</dd>
+      <div className="mx-auto flex w-full max-w-5xl flex-col gap-5">
+        <section className="overflow-hidden rounded-[2rem] border border-white/70 bg-[radial-gradient(circle_at_top_right,#fff9f3_0%,#fffdfa_34%,#ffffff_100%)] shadow-[0_28px_110px_rgba(15,23,42,0.10)] ring-1 ring-[#eadfd3]">
+          <div className="border-b border-[#efe5da] bg-[linear-gradient(135deg,rgba(255,248,240,0.98)_0%,rgba(255,255,255,0.9)_60%,rgba(249,244,237,0.96)_100%)] px-5 py-6 sm:px-8 sm:py-8">
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+              <div className="max-w-2xl">
+                <p className="text-[11px] font-medium tracking-[0.24em] text-[#9a7b5c]">
+                  BOUTIQUE PROPOSAL
+                </p>
+                <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
+                  {business.name}
+                </h1>
+                <p className="mt-3 text-base leading-8 text-slate-600">
+                  הצעת מחיר
+                </p>
               </div>
-            )}
-            {business.email && (
-              <div className="flex justify-between gap-3 sm:block">
-                <dt className="text-slate-500">אימייל</dt>
-                <dd className="break-words font-medium text-slate-700">
-                  {business.email}
-                </dd>
-              </div>
-            )}
-            {businessAddressLine && (
-              <div className="flex justify-between gap-3 sm:col-span-2 sm:block">
-                <dt className="text-slate-500">כתובת</dt>
-                <dd className="font-medium text-slate-700">{businessAddressLine}</dd>
-              </div>
-            )}
-            {business.taxId && (
-              <div className="flex justify-between gap-3 sm:block">
-                <dt className="text-slate-500">ע"מ / ח.פ</dt>
-                <dd className="font-medium text-slate-700">{business.taxId}</dd>
-              </div>
-            )}
-          </dl>
-        </header>
 
-        {isApproved && doc.approvedAt && (
-          <Card className="border-emerald-200 bg-emerald-50">
-            <CardContent className="space-y-1 p-5 text-center sm:p-6">
-              <p className="text-base font-semibold text-emerald-800">
-                הצעת המחיר כבר אושרה
-              </p>
-              <p className="text-sm text-emerald-700">
-                {doc.approvedByName
-                  ? `אושרה על ידי ${doc.approvedByName} בתאריך ${formatDate(doc.approvedAt)}`
-                  : `אושרה בתאריך ${formatDate(doc.approvedAt)}`}
-              </p>
-            </CardContent>
-          </Card>
-        )}
+              <div className="grid grid-cols-2 gap-3 sm:min-w-[280px]">
+                <div className="rounded-2xl border border-[#ece1d5] bg-white/80 px-4 py-4 shadow-[0_10px_30px_rgba(148,163,184,0.08)]">
+                  <p className="text-[11px] font-medium tracking-[0.18em] text-[#9a7b5c]">
+                    מספר הצעה
+                  </p>
+                  <p className="mt-2 text-lg font-semibold text-slate-900">
+                    {doc.number ?? "—"}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-[#ece1d5] bg-white/80 px-4 py-4 shadow-[0_10px_30px_rgba(148,163,184,0.08)]">
+                  <p className="text-[11px] font-medium tracking-[0.18em] text-[#9a7b5c]">
+                    תאריך הנפקה
+                  </p>
+                  <p className="mt-2 text-lg font-semibold text-slate-900">
+                    {doc.issueDate ? formatDate(doc.issueDate) : "—"}
+                  </p>
+                </div>
+              </div>
+            </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">פרטי ההצעה</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm sm:grid-cols-3">
-              <div>
-                <dt className="text-slate-500">מספר הצעה</dt>
-                <dd className="mt-0.5 font-semibold text-slate-800">
-                  {doc.number ?? "—"}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-slate-500">תאריך הנפקה</dt>
-                <dd className="mt-0.5 font-semibold text-slate-800">
-                  {doc.issueDate ? formatDate(doc.issueDate) : "—"}
-                </dd>
-              </div>
-              {doc.dueDate && (
-                <div>
-                  <dt className="text-slate-500">בתוקף עד</dt>
-                  <dd className="mt-0.5 font-semibold text-slate-800">
-                    {formatDate(doc.dueDate)}
-                  </dd>
-                </div>
+            <div className="mt-6 flex flex-wrap gap-3 text-sm text-slate-600">
+              {business.phone && (
+                <span className="rounded-full border border-[#ece1d5] bg-white/70 px-4 py-2">
+                  טלפון: {business.phone}
+                </span>
               )}
-              <div className="col-span-2 border-t border-slate-100 pt-3 sm:col-span-3">
-                <dt className="text-slate-500">לקוח</dt>
-                <dd className="mt-0.5 font-semibold text-slate-800">{customerName}</dd>
-              </div>
-              {doc.customerEmail && (
-                <div>
-                  <dt className="text-slate-500">אימייל לקוח</dt>
-                  <dd className="mt-0.5 break-words text-slate-800">
-                    {doc.customerEmail}
-                  </dd>
-                </div>
+              {business.email && (
+                <span className="rounded-full border border-[#ece1d5] bg-white/70 px-4 py-2 break-all">
+                  אימייל: {business.email}
+                </span>
               )}
-              {doc.customer.phone && (
-                <div>
-                  <dt className="text-slate-500">טלפון לקוח</dt>
-                  <dd className="mt-0.5 text-slate-800">{doc.customer.phone}</dd>
-                </div>
+              {businessAddressLine && (
+                <span className="rounded-full border border-[#ece1d5] bg-white/70 px-4 py-2">
+                  כתובת: {businessAddressLine}
+                </span>
               )}
-              {doc.eventDate && (
-                <div>
-                  <dt className="text-slate-500">תאריך האירוע</dt>
-                  <dd className="mt-0.5 text-slate-800">
-                    {formatDate(doc.eventDate)}
-                  </dd>
-                </div>
+              {business.taxId && (
+                <span className="rounded-full border border-[#ece1d5] bg-white/70 px-4 py-2">
+                  ע"מ / ח.פ: {business.taxId}
+                </span>
               )}
-              {doc.eventLocation && (
-                <div className="col-span-2 sm:col-span-2">
-                  <dt className="text-slate-500">מיקום האירוע</dt>
-                  <dd className="mt-0.5 text-slate-800">{doc.eventLocation}</dd>
-                </div>
-              )}
-              {doc.eventTime && (
-                <div>
-                  <dt className="text-slate-500">שעת האירוע</dt>
-                  <dd className="mt-0.5 text-slate-800">{doc.eventTime}</dd>
-                </div>
-              )}
-            </dl>
-          </CardContent>
-        </Card>
+            </div>
+          </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">פירוט שירותים ופריטים</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="divide-y divide-slate-100">
-              {doc.items.map((item) => (
-                <li
+          <div className="px-5 py-5 sm:px-8 sm:py-6">
+            {isApproved && doc.approvedAt ? (
+              <div className="rounded-[1.75rem] border border-emerald-200/80 bg-[linear-gradient(135deg,#f3fbf7_0%,#fbfffd_100%)] px-5 py-5 shadow-[0_16px_45px_rgba(16,185,129,0.10)]">
+                <p className="text-[11px] font-medium tracking-[0.22em] text-emerald-700">
+                  APPROVED
+                </p>
+                <h2 className="mt-3 text-2xl font-semibold text-slate-900">
+                  הצעת המחיר אושרה
+                </h2>
+                <p className="mt-2 text-sm leading-7 text-slate-600">
+                  {doc.approvedByName
+                    ? `אושרה על ידי ${doc.approvedByName} בתאריך ${formatDate(doc.approvedAt)}`
+                    : `אושרה בתאריך ${formatDate(doc.approvedAt)}`}
+                </p>
+              </div>
+            ) : (
+              <div className="rounded-[1.75rem] border border-[#e8dece] bg-[#fffaf4] px-5 py-5 shadow-[0_12px_36px_rgba(148,163,184,0.08)]">
+                <p className="text-[11px] font-medium tracking-[0.22em] text-[#9a7b5c]">
+                  לפני האישור
+                </p>
+                <p className="mt-3 text-sm leading-7 text-slate-700">
+                  נא לעבור על פרטי ההצעה ולאשר בתחתית העמוד.
+                </p>
+              </div>
+            )}
+          </div>
+        </section>
+
+        <section className="rounded-[2rem] border border-[#efe3d8] bg-white/90 p-5 shadow-[0_24px_80px_rgba(15,23,42,0.07)] ring-1 ring-white/70 sm:p-8">
+          <div className="mb-5">
+            <p className="text-[11px] font-medium tracking-[0.22em] text-[#9a7b5c]">
+              פרטי ההצעה
+            </p>
+            <h2 className="mt-2 text-2xl font-semibold text-slate-900">
+              פרטי הלקוח והאירוע
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {detailTiles.map((item) => (
+              <DetailTile key={`${item.label}-${item.value}`} {...item} />
+            ))}
+          </div>
+        </section>
+
+        <section className="grid gap-5 lg:grid-cols-[minmax(0,1.55fr)_minmax(280px,0.85fr)]">
+          <div className="space-y-5">
+            {doc.items.map((item, index) => {
+              const parsed = parseItemDescription(item.description);
+              const sectionLabel =
+                index === 0 ? "החבילה שנבחרה" : "שירות נוסף";
+
+              return (
+                <section
                   key={item.id}
-                  className="flex flex-col gap-1 py-3 first:pt-0 last:pb-0 sm:flex-row sm:items-start sm:justify-between sm:gap-4"
+                  className="rounded-[2rem] border border-[#efe3d8] bg-[linear-gradient(180deg,#fffefc_0%,#fffaf6_100%)] p-5 shadow-[0_24px_70px_rgba(15,23,42,0.06)] ring-1 ring-white/80 sm:p-7"
                 >
-                  <div className="min-w-0 flex-1">
-                    <p className="break-words text-sm font-medium text-slate-800">
-                      {item.description}
+                  <div className="max-w-3xl">
+                    <p className="text-[11px] font-medium tracking-[0.22em] text-[#9a7b5c]">
+                      {sectionLabel}
                     </p>
-                    <p className="mt-0.5 text-xs text-slate-500">
-                      כמות: {item.quantity.toString()} · מחיר יחידה:{" "}
-                      {formatCurrency(item.unitPrice.toString())}
-                    </p>
+                    <h2 className="mt-3 text-2xl font-semibold leading-tight text-slate-900 sm:text-[2rem]">
+                      {parsed.title}
+                    </h2>
                   </div>
-                  <div className="shrink-0 text-left tabular-nums">
-                    <p className="text-base font-semibold text-slate-900">
-                      {formatCurrency(item.totalAmount.toString())}
-                    </p>
-                  </div>
-                </li>
-              ))}
-            </ul>
 
-            <div className="mt-4 border-t border-slate-200 pt-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-slate-500">סה"כ לפני מע"מ</span>
-                <span className="text-sm font-medium tabular-nums text-slate-700">
-                  {formatCurrency(doc.subtotalAmount.toString())}
-                </span>
-              </div>
-              {Number(doc.vatRateSnapshot) > 0 && (
-                <div className="mt-1 flex items-center justify-between">
-                  <span className="text-sm text-slate-500">
-                    מע"מ ({doc.vatRateSnapshot.toString()}%)
-                  </span>
-                  <span className="text-sm font-medium tabular-nums text-slate-700">
-                    {formatCurrency(doc.taxAmount.toString())}
+                  {parsed.bullets.length > 0 && (
+                    <ul className="mt-6 space-y-3">
+                      {parsed.bullets.map((bullet, bulletIndex) => (
+                        <li
+                          key={`${item.id}-bullet-${bulletIndex}`}
+                          className="flex items-start gap-3 rounded-2xl bg-white/80 px-4 py-3 shadow-[0_10px_24px_rgba(148,163,184,0.08)] ring-1 ring-[#f1e7dc]"
+                        >
+                          <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-[#b68a62]" />
+                          <span className="text-sm leading-7 text-slate-700">
+                            {bullet}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+
+                  <div className="mt-7 rounded-[1.5rem] border border-[#eadfd3] bg-white px-4 py-4 shadow-[0_14px_40px_rgba(148,163,184,0.08)] sm:px-5">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                      <div className="rounded-2xl bg-[#fcf6f0] px-4 py-3">
+                        <p className="text-xs text-[#9a7b5c]">כמות</p>
+                        <p className="mt-1 text-base font-semibold text-slate-900">
+                          {item.quantity.toString()}
+                        </p>
+                      </div>
+                      <div className="rounded-2xl bg-[#fcf6f0] px-4 py-3">
+                        <p className="text-xs text-[#9a7b5c]">מחיר יחידה</p>
+                        <p className="mt-1 text-base font-semibold text-slate-900">
+                          {formatCurrency(item.unitPrice.toString())}
+                        </p>
+                      </div>
+                      <div className="rounded-2xl bg-[#f6efe8] px-4 py-3">
+                        <p className="text-xs text-[#9a7b5c]">סה"כ לחבילה</p>
+                        <p className="mt-1 text-lg font-semibold text-slate-900">
+                          {formatCurrency(item.totalAmount.toString())}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+              );
+            })}
+
+            {doc.quoteTermsText?.trim() && (
+              <section className="rounded-[2rem] border border-[#efe3d8] bg-white/90 p-5 shadow-[0_20px_70px_rgba(15,23,42,0.06)] ring-1 ring-white/70 sm:p-7">
+                <p className="text-[11px] font-medium tracking-[0.22em] text-[#9a7b5c]">
+                  תנאים והערות
+                </p>
+                <h2 className="mt-3 text-xl font-semibold text-slate-900">
+                  פרטי ההצעה המלאים
+                </h2>
+                <div className="mt-5 rounded-[1.5rem] border border-[#efe6dc] bg-[#fffdfa] px-4 py-4">
+                  <p className="whitespace-pre-wrap text-sm leading-8 text-slate-600">
+                    {doc.quoteTermsText}
+                  </p>
+                </div>
+              </section>
+            )}
+          </div>
+
+          <aside className="space-y-5">
+            <section className="rounded-[2rem] border border-[#eadfd3] bg-[linear-gradient(180deg,#fff8f1_0%,#fffdfb_100%)] p-5 shadow-[0_24px_80px_rgba(15,23,42,0.08)] sm:p-7">
+              <p className="text-[11px] font-medium tracking-[0.22em] text-[#9a7b5c]">
+                סיכום
+              </p>
+              <h2 className="mt-3 text-xl font-semibold text-slate-900">
+                סה״כ לתשלום
+              </h2>
+
+              <div className="mt-6 space-y-3 rounded-[1.5rem] border border-[#efe3d8] bg-white px-4 py-4">
+                <div className="flex items-center justify-between text-sm text-slate-600">
+                  <span>לפני מע״מ</span>
+                  <span className="font-medium tabular-nums">
+                    {formatCurrency(doc.subtotalAmount.toString())}
                   </span>
                 </div>
-              )}
-              <div className="mt-2 flex items-center justify-between border-t border-slate-200 pt-2">
-                <span className="text-base font-semibold text-slate-900">
-                  סה"כ לתשלום
-                </span>
-                <span className="text-xl font-bold tabular-nums text-emerald-700">
-                  {formatCurrency(doc.totalAmount.toString())}
-                </span>
+                {Number(doc.vatRateSnapshot) > 0 && (
+                  <div className="flex items-center justify-between text-sm text-slate-600">
+                    <span>מע״מ ({doc.vatRateSnapshot.toString()}%)</span>
+                    <span className="font-medium tabular-nums">
+                      {formatCurrency(doc.taxAmount.toString())}
+                    </span>
+                  </div>
+                )}
+                <div className="border-t border-[#f1e6da] pt-4">
+                  <p className="text-sm text-[#9a7b5c]">סה״כ לתשלום</p>
+                  <p className="mt-2 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
+                    {formatCurrency(doc.totalAmount.toString())}
+                  </p>
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </section>
 
-        {doc.quoteTermsText?.trim() && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">תנאים והערות</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="whitespace-pre-wrap text-sm leading-7 text-slate-700">
-                {doc.quoteTermsText}
+            <section className="rounded-[2rem] border border-[#eadfd3] bg-white/90 p-5 shadow-[0_24px_70px_rgba(15,23,42,0.06)] ring-1 ring-white/70 sm:p-7">
+              <p className="text-[11px] font-medium tracking-[0.22em] text-[#9a7b5c]">
+                קובץ ההצעה
               </p>
-            </CardContent>
-          </Card>
-        )}
-
-        <Card>
-          <CardContent className="flex items-center justify-between gap-3 p-4">
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-slate-800">קובץ PDF</p>
-              <p className="mt-0.5 text-xs text-slate-500">
-                ניתן להוריד או לצפות במסמך המקורי בפורמט PDF.
+              <h2 className="mt-3 text-xl font-semibold text-slate-900">
+                צפייה במסמך המקורי
+              </h2>
+              <p className="mt-3 text-sm leading-7 text-slate-600">
+                ניתן לצפות או להוריד את קובץ ה-PDF המקורי של ההצעה בכל שלב.
               </p>
-            </div>
-            <Link
-              href={pdfHref}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex min-h-[44px] shrink-0 items-center justify-center rounded-md border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
-            >
-              צפייה / הורדה
-            </Link>
-          </CardContent>
-        </Card>
+              <a
+                href={pdfHref}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-6 inline-flex min-h-[48px] w-full items-center justify-center rounded-2xl border border-[#d8c3ad] bg-[linear-gradient(180deg,#fffaf5_0%,#fff3e7_100%)] px-4 text-sm font-semibold text-slate-800 shadow-[0_16px_40px_rgba(182,138,98,0.14)] transition-transform duration-200 hover:-translate-y-0.5 hover:bg-[#fff5eb]"
+              >
+                צפייה / הורדת PDF
+              </a>
+            </section>
+          </aside>
+        </section>
 
         {!isApproved && <ApprovalForm token={token} customerName={customerName} />}
 
-        <p className="px-1 pb-4 text-center text-xs text-slate-400">
+        <p className="px-2 pb-4 text-center text-xs leading-7 text-slate-400">
           באישור ההצעה הנך מאשר/ת את פרטיה ואת התנאים המופיעים בה.
         </p>
       </div>

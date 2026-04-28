@@ -6,6 +6,8 @@ Completed the missing customer-approval flow for issued quotes while keeping the
 
 The approval flow now also supports an optional customer signature. Signature capture is available on the public approval page, remains login-free, and is saved alongside the existing approval metadata when provided.
 
+The public approval page was also redesigned to feel more premium and boutique, with a warmer presentation layer and a clearer package/approval hierarchy. This was a UI-only change: approval logic, token/security flow, email/WhatsApp links, and PDF behavior were left intact.
+
 ### What was completed
 
 - Added the missing client component `src/app/approve/[token]/ApprovalForm.tsx`.
@@ -22,6 +24,7 @@ The approval flow now also supports an optional customer signature. Signature ca
 - Updated manual email sending so customer resend of an issued quote also includes a fresh approval link.
 - Kept the existing public PDF token flow and existing PDF behavior unchanged.
 - Added optional signature capture and storage for quote approvals.
+- Redesigned the public approval page presentation and layout.
 
 ### Files changed
 
@@ -34,6 +37,8 @@ The approval flow now also supports an optional customer signature. Signature ca
 - `src/services/email.service.ts`
 - `prisma/schema.prisma`
 - `src/services/document.service.ts`
+- `src/app/approve/[token]/page.tsx`
+- `src/app/approve/[token]/ApprovalForm.tsx`
 - `docs/RUNNING_SUMMARY.md`
 
 ### Approval token flow
@@ -50,6 +55,8 @@ The approval flow now also supports an optional customer signature. Signature ca
 - Public approval page works without login.
 - It only resolves tokens that belong to `ISSUED` `QUOTE` documents.
 - Invalid / wrong-type / wrong-status / expired cases collapse to the same safe message.
+- The page now uses a premium hero / proposal layout instead of a generic admin-style card stack.
+- `בתוקף עד` was removed from the public approval page.
 - The approval form now includes:
   - required full name
   - required approval checkbox
@@ -72,6 +79,28 @@ The approval flow now also supports an optional customer signature. Signature ca
   - public PDF download link
   - approval form with checkbox + full name
   - optional signature pad
+
+### Approval page redesign
+
+- Replaced the simple header with a premium hero card that shows:
+  - business name
+  - `הצעת מחיר`
+  - quote number
+  - issue date
+- Added a more elegant approval-state presentation:
+  - premium success banner after approval
+  - subtle pre-approval notice before approval
+- Merged customer / event information into cleaner visual detail cards.
+- Improved mobile spacing, hierarchy, and card rhythm while keeping RTL and avoiding horizontal overflow.
+
+### Service package parsing and display
+
+- The public approval page no longer renders the item description as one plain text block.
+- For each quote item:
+  - the first non-empty line is treated as the package/service title
+  - remaining lines are rendered as clean bullets
+  - quantity, unit price, and line total are shown in a separate price summary area
+- This gives the selected package a more boutique proposal feel, especially for photography quote packages.
 
 ### Signature behavior
 
@@ -107,6 +136,7 @@ The approval flow now also supports an optional customer signature. Signature ca
 
 - Public PDF access still uses the existing HMAC token derived from `document.id` + `issuedHash`.
 - The approval page builds its PDF link with that existing mechanism.
+- The public approval page PDF action now uses a plain anchor instead of `next/link` for this internal public-file URL, which avoids the double `/green/green/api/...` issue under the app base path.
 - Draft documents are still not exposed.
 - Unrelated documents are still not exposed.
 
