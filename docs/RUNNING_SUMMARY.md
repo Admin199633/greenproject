@@ -74,8 +74,8 @@ The public approval page was also redesigned to feel more premium and boutique, 
   - customer details
   - event details when present
   - service/items summary
-  - total amount
-  - terms and conditions
+  - package-level price summary only (`כמות`, `מחיר יחידה`, `סה"כ לחבילה`)
+  - terms and conditions behind a modal trigger instead of a long inline block
   - public PDF download link
   - approval form with checkbox + full name
   - optional signature pad
@@ -92,6 +92,8 @@ The public approval page was also redesigned to feel more premium and boutique, 
   - subtle pre-approval notice before approval
 - Merged customer / event information into cleaner visual detail cards.
 - Improved mobile spacing, hierarchy, and card rhythm while keeping RTL and avoiding horizontal overflow.
+- Moved `תנאים והערות` from an inline section into a scrollable modal / bottom-sheet trigger to shorten the mobile page.
+- Removed the duplicate aside total summary card so the page keeps only the package card summary.
 
 ### Service package parsing and display
 

@@ -1,9 +1,9 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { buildPublicDocumentPdfPath } from "@/lib/documents/delivery";
 import { createPublicPdfToken } from "@/lib/documents/public-pdf";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { findQuoteByApprovalToken } from "@/services/document.service";
 import ApprovalForm from "./ApprovalForm";
+import QuoteTermsModal from "./QuoteTermsModal";
 
 export const dynamic = "force-dynamic";
 
@@ -22,15 +22,16 @@ function parseItemDescription(description: string) {
   }
 
   const normalizeBullet = (value: string) =>
-    value.replace(/^[•●▪◦·*\-]+\s*/, "").trim();
+    value.replace(/^[•·*\-]+\s*/, "").trim();
 
   const [firstLine, ...rest] = lines;
   const title = normalizeBullet(firstLine) || "שירות";
   const bullets = rest.flatMap((line) => {
     const parts = line
-      .split(/\s*[•●▪◦·]\s*/g)
+      .split(/\s*[•·]\s*/g)
       .map((part) => normalizeBullet(part))
       .filter(Boolean);
+
     return parts.length > 0 ? parts : [normalizeBullet(line)].filter(Boolean);
   });
 
@@ -159,7 +160,7 @@ export default async function ApprovePage({ params }: PageProps) {
                 </span>
               )}
               {business.email && (
-                <span className="rounded-full border border-[#ece1d5] bg-white/70 px-4 py-2 break-all">
+                <span className="break-all rounded-full border border-[#ece1d5] bg-white/70 px-4 py-2">
                   אימייל: {business.email}
                 </span>
               )}
@@ -285,55 +286,14 @@ export default async function ApprovePage({ params }: PageProps) {
             })}
 
             {doc.quoteTermsText?.trim() && (
-              <section className="rounded-[2rem] border border-[#efe3d8] bg-white/90 p-5 shadow-[0_20px_70px_rgba(15,23,42,0.06)] ring-1 ring-white/70 sm:p-7">
-                <p className="text-[11px] font-medium tracking-[0.22em] text-[#9a7b5c]">
-                  תנאים והערות
-                </p>
-                <h2 className="mt-3 text-xl font-semibold text-slate-900">
-                  פרטי ההצעה המלאים
-                </h2>
-                <div className="mt-5 rounded-[1.5rem] border border-[#efe6dc] bg-[#fffdfa] px-4 py-4">
-                  <p className="whitespace-pre-wrap text-sm leading-8 text-slate-600">
-                    {doc.quoteTermsText}
-                  </p>
-                </div>
-              </section>
+              <QuoteTermsModal
+                termsText={doc.quoteTermsText}
+                triggerVariant="card"
+              />
             )}
           </div>
 
           <aside className="space-y-5">
-            <section className="rounded-[2rem] border border-[#eadfd3] bg-[linear-gradient(180deg,#fff8f1_0%,#fffdfb_100%)] p-5 shadow-[0_24px_80px_rgba(15,23,42,0.08)] sm:p-7">
-              <p className="text-[11px] font-medium tracking-[0.22em] text-[#9a7b5c]">
-                סיכום
-              </p>
-              <h2 className="mt-3 text-xl font-semibold text-slate-900">
-                סה״כ לתשלום
-              </h2>
-
-              <div className="mt-6 space-y-3 rounded-[1.5rem] border border-[#efe3d8] bg-white px-4 py-4">
-                <div className="flex items-center justify-between text-sm text-slate-600">
-                  <span>לפני מע״מ</span>
-                  <span className="font-medium tabular-nums">
-                    {formatCurrency(doc.subtotalAmount.toString())}
-                  </span>
-                </div>
-                {Number(doc.vatRateSnapshot) > 0 && (
-                  <div className="flex items-center justify-between text-sm text-slate-600">
-                    <span>מע״מ ({doc.vatRateSnapshot.toString()}%)</span>
-                    <span className="font-medium tabular-nums">
-                      {formatCurrency(doc.taxAmount.toString())}
-                    </span>
-                  </div>
-                )}
-                <div className="border-t border-[#f1e6da] pt-4">
-                  <p className="text-sm text-[#9a7b5c]">סה״כ לתשלום</p>
-                  <p className="mt-2 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
-                    {formatCurrency(doc.totalAmount.toString())}
-                  </p>
-                </div>
-              </div>
-            </section>
-
             <section className="rounded-[2rem] border border-[#eadfd3] bg-white/90 p-5 shadow-[0_24px_70px_rgba(15,23,42,0.06)] ring-1 ring-white/70 sm:p-7">
               <p className="text-[11px] font-medium tracking-[0.22em] text-[#9a7b5c]">
                 קובץ ההצעה
@@ -356,7 +316,13 @@ export default async function ApprovePage({ params }: PageProps) {
           </aside>
         </section>
 
-        {!isApproved && <ApprovalForm token={token} customerName={customerName} />}
+        {!isApproved && (
+          <ApprovalForm
+            token={token}
+            customerName={customerName}
+            termsText={doc.quoteTermsText}
+          />
+        )}
 
         <p className="px-2 pb-4 text-center text-xs leading-7 text-slate-400">
           באישור ההצעה הנך מאשר/ת את פרטיה ואת התנאים המופיעים בה.

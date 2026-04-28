@@ -4,10 +4,12 @@ import { useEffect, useRef, useState } from "react";
 import { API_BASE } from "@/lib/api-base";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import QuoteTermsModal from "./QuoteTermsModal";
 
 interface ApprovalFormProps {
   token: string;
   customerName: string;
+  termsText?: string | null;
 }
 
 type FormState = "idle" | "loading" | "success" | "error";
@@ -15,6 +17,7 @@ type FormState = "idle" | "loading" | "success" | "error";
 export default function ApprovalForm({
   token,
   customerName,
+  termsText,
 }: ApprovalFormProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const isDrawingRef = useRef(false);
@@ -262,16 +265,24 @@ export default function ApprovalForm({
           </div>
         </div>
 
-        <label className="flex min-h-[52px] items-start gap-3 rounded-[1.5rem] border border-[#ece1d5] bg-white/90 px-4 py-4 text-sm leading-7 text-slate-700 shadow-[0_12px_30px_rgba(148,163,184,0.08)] sm:px-5">
-          <input
-            type="checkbox"
-            checked={accepted}
-            onChange={(event) => setAccepted(event.target.checked)}
-            className="mt-1 h-4 w-4 shrink-0 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
-            disabled={state === "loading"}
-          />
-          <span>קראתי ואני מאשר/ת את פרטי ההצעה והתנאים</span>
-        </label>
+        <div className="rounded-[1.5rem] border border-[#ece1d5] bg-white/90 px-4 py-4 shadow-[0_12px_30px_rgba(148,163,184,0.08)] sm:px-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <label className="flex min-h-[52px] items-start gap-3 text-sm leading-7 text-slate-700">
+              <input
+                type="checkbox"
+                checked={accepted}
+                onChange={(event) => setAccepted(event.target.checked)}
+                className="mt-1 h-4 w-4 shrink-0 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                disabled={state === "loading"}
+              />
+              <span>קראתי ואני מאשר/ת את פרטי ההצעה והתנאים</span>
+            </label>
+
+            {termsText?.trim() ? (
+              <QuoteTermsModal termsText={termsText} triggerVariant="inline" />
+            ) : null}
+          </div>
+        </div>
 
         {state === "error" && error && (
           <p className="rounded-[1.5rem] border border-red-200 bg-red-50 px-4 py-4 text-sm leading-7 text-red-700">
