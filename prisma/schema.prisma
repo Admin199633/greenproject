@@ -15,11 +15,16 @@ model User {
   email        String    @unique
   name         String?
   passwordHash String
+  /// SHA-256 hex digest of the active password-reset token; raw token never stored
+  resetPasswordTokenHash String?
+  resetPasswordExpiresAt DateTime?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
   business         Business?
   createdPayments  Payment[]
+
+  @@index([resetPasswordTokenHash])
 }
 
 // ─── Business ────────────────────────────────────────────────────────────────

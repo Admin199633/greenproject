@@ -1,5 +1,89 @@
 # Running Summary
 
+## Forgot password / reset password flow
+
+A user who cannot remember their password can now request a reset email and pick a new password from a one-time, time-limited link. Existing login and registration flows are unchanged.
+
+### Schema additions (`User`)
+
+- `resetPasswordTokenHash String?` — SHA-256 hex digest of the active reset token. Indexed for the lookup. The raw token is **never** stored.
+- `resetPasswordExpiresAt DateTime?` — set to `now + 30 minutes` when a token is issued; both fields are cleared after a successful reset.
+
+### Required DB sync command
+
+After pulling these changes, run:
+
+```
+npx prisma generate
+npx prisma db push
+```
+
+`db push` adds the two nullable columns and the new index on `resetPasswordTokenHash`; existing rows default to `NULL` so users without an active reset link are unaffected.
+
+### Reused env vars
+
+The reset email reuses the existing SMTP setup — no new variables are introduced:
+
+- `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`
+- `NEXTAUTH_URL` — used to build the absolute `https://<host>/green/reset-password?token=…` link in the email. If not configured, the helper falls back to `https://liorsw.com`.
+
+### Endpoints
+
+- `POST /green/api/auth/forgot-password`
+  - Body: `{ email: string }` (zod-validated, lowercased before lookup).
+  - Response is **always** `{ message: "אם קיים חשבון עם כתובת זו, נשלח אליו קישור לאיפוס סיסמה." }` with HTTP 200, regardless of whether a user exists, whether SMTP succeeded, or whether the body was malformed. This makes the endpoint impossible to use as an email-existence oracle.
+  - When the email matches a user, a fresh 32-byte random token is generated, hashed with SHA-256, and stored together with `expiresAt = now + 30min`. The raw token is sent only via email and is never logged.
+  - Email send failures are caught and logged as `[auth:forgot-password] email send failed` without including the token or URL.
+
+- `POST /green/api/auth/reset-password`
+  - Body: `{ token: string, password: string, confirmPassword: string }`.
+  - Validation: password ≥ 6 chars, passwords must match.
+  - Token verification: hashes the submitted token, looks up the user with that hash and `resetPasswordExpiresAt > now()`. On miss, returns 400 with `הקישור לא תקין או שתוקפו פג. יש לבקש קישור חדש.`.
+  - Password update reuses the same `bcrypt.hash(password, 12)` salt rounds as registration / login.
+  - Single-use guarantee: the password and token are written via `db.user.updateMany` whose where-clause still includes the token hash + expiry. A racing second request finds 0 matching rows after the first one clears the token, so the same link cannot be reused.
+  - On success, both `resetPasswordTokenHash` and `resetPasswordExpiresAt` are cleared.
+
+### Pages
+
+- `/green/login` — added the link **שכחתי סיסמה** under the password field, plus a green success banner when the URL contains `?passwordReset=1`. Existing form behavior is unchanged.
+- `/green/forgot-password` — single-field email form. After submit (success or network failure) the page swaps to the generic confirmation message and a "חזרה להתחברות" link. The page never reveals whether the email matched an account.
+- `/green/reset-password?token=…` — new-password + confirm-password form. Missing token shows a Hebrew error and a link back to `/forgot-password`. On a successful reset, the page redirects to `/login?passwordReset=1`.
+
+### Files added / changed
+
+- `prisma/schema.prisma` (`User.resetPasswordTokenHash`, `User.resetPasswordExpiresAt`, index)
+- `src/lib/auth/password-reset.ts` (server-only — token generation, SHA-256 hashing, reset-URL builder, SMTP transport, Hebrew email HTML/text)
+- `src/app/api/auth/forgot-password/route.ts` (new)
+- `src/app/api/auth/reset-password/route.ts` (new)
+- `src/app/(auth)/forgot-password/page.tsx` (new)
+- `src/app/(auth)/reset-password/page.tsx` (new)
+- `src/app/(auth)/login/page.tsx` (link to `/forgot-password`, `?passwordReset=1` banner)
+- `docs/RUNNING_SUMMARY.md`
+
+### Security guarantees recap
+
+- Raw reset tokens are never persisted — only the SHA-256 hash is stored.
+- Tokens are not logged. Console errors avoid the token, the reset URL, and the user id.
+- The `forgot-password` endpoint always returns the same generic message, so it cannot be used to enumerate accounts.
+- Tokens expire 30 minutes after issuance.
+- Tokens are single-use: the `updateMany` guard prevents reuse even under concurrent requests.
+- The reset endpoint hashes the new password with `bcrypt` at the same cost (`12`) as registration/login.
+
+### Manual test checklist
+
+1. Apply the schema: `npx prisma generate && npx prisma db push`.
+2. Visit `/green/login` — confirm the new "שכחתי סיסמה" link sits under the password field.
+3. Click the link → arrives at `/green/forgot-password`.
+4. Submit an email that **exists** in `User`. The page swaps to the generic success message. The configured SMTP inbox receives a Hebrew email with a "איפוס סיסמה" button + 30-minute expiration notice + a "אם לא ביקשת" disclaimer.
+5. Click the email button — lands on `/green/reset-password?token=…`. Set a new password, confirm, submit → redirected to `/green/login?passwordReset=1` with the green "הסיסמה עודכנה בהצלחה" banner.
+6. Log in with the new password — succeeds.
+7. Log in with the old password — fails with the existing "אימייל או סיסמה שגויים" error.
+8. Open the same reset link a second time → the page still renders, but submitting returns the safe error `הקישור לא תקין או שתוקפו פג. יש לבקש קישור חדש.` (single-use enforcement).
+9. In Prisma Studio, set a user's `resetPasswordExpiresAt` to a past date and visit a fresh link with the corresponding token → submit shows the same safe error (expiry enforcement).
+10. Submit the forgot-password form with an email that **does not exist** in `User`. The same generic message appears; check Supabase that no `resetPasswordTokenHash` was written for any user; check the SMTP inbox that no email was sent.
+11. Tamper with the token in the URL (change a few characters) → submit returns the safe error.
+12. Submit the reset form with mismatched passwords or a 5-char password → client- and server-side validation both reject before any DB write.
+
 ## Configurable quote terms ("אותיות קטנות")
 
 A business can now define a default block of terms / "small print" text that is automatically attached to every new quote ("הצעת מחיר") at creation time and rendered at the bottom of the quote PDF.

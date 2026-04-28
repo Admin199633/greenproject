@@ -22,6 +22,7 @@ function LoginInner() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const registered = searchParams.get("registered") === "1";
+  const passwordReset = searchParams.get("passwordReset") === "1";
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -87,10 +88,21 @@ function LoginInner() {
                 autoComplete="current-password"
                 required
               />
+              <Link
+                href="/forgot-password"
+                className="block text-sm text-brand-700 hover:underline"
+              >
+                שכחתי סיסמה
+              </Link>
             </div>
             {registered && (
               <p className="text-center text-sm text-green-700" role="status">
                 החשבון נוצר בהצלחה. אפשר להתחבר עכשיו.
+              </p>
+            )}
+            {passwordReset && (
+              <p className="text-center text-sm text-green-700" role="status">
+                הסיסמה עודכנה בהצלחה. אפשר להתחבר עם הסיסמה החדשה.
               </p>
             )}
             {error && (
