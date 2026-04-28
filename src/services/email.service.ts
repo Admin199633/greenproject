@@ -1,4 +1,4 @@
-import nodemailer from "nodemailer";
+import nodemailer, { type Transporter } from "nodemailer";
 import { db } from "@/lib/db";
 import {
   buildAbsoluteUrl,
@@ -49,32 +49,6 @@ function getCustomerDisplayName(document: Awaited<ReturnType<typeof getDocumentB
   );
 }
 
-function getRecipientList(params: {
-  audience: DeliveryAudience;
-  businessEmail: string | null | undefined;
-  customerEmail: string | null | undefined;
-}) {
-  const businessEmail = params.businessEmail?.trim() || null;
-  const customerEmail = params.customerEmail?.trim() || null;
-
-  if (params.audience === "customer") {
-    if (!customerEmail) {
-      throw new Error("Customer has no email address");
-    }
-    return [customerEmail];
-  }
-
-  const recipients = Array.from(
-    new Set([businessEmail, customerEmail].filter(Boolean) as string[])
-  );
-
-  if (recipients.length === 0) {
-    throw new Error("No document email recipients");
-  }
-
-  return recipients;
-}
-
 export async function sendDocumentEmail(
   documentId: string,
   businessId: string,
@@ -99,11 +73,13 @@ export async function sendDocumentEmail(
     where: { id: businessId },
   });
 
-  const recipients = getRecipientList({
-    audience,
-    businessEmail: business.email,
-    customerEmail: document.customerEmail ?? document.customer.email,
-  });
+  const businessEmail = business.email?.trim() || null;
+  const customerEmail =
+    document.customerEmail?.trim() || document.customer.email?.trim() || null;
+
+  if (audience === "customer" && !customerEmail) {
+    throw new Error("Customer has no email address");
+  }
 
   const transport = createTransport();
   const documentNumber = document.number ?? document.id;
@@ -141,38 +117,89 @@ export async function sendDocumentEmail(
   const fromAddress =
     process.env.SMTP_FROM?.trim() || business.email?.trim() || "noreply@example.com";
 
-  await transport.sendMail({
-    from: fromAddress,
-    to: recipients,
-    subject,
-    text: buildDocumentEmailText({
-      customerName: getCustomerDisplayName(document),
-      businessName: business.name,
-      businessPhone: business.phone,
-      businessEmail: business.email,
-      type: document.type,
-      documentNumber,
-      totalAmount,
-      pdfUrl,
-    }),
-    html: buildDocumentEmailHtml({
-      customerName: getCustomerDisplayName(document),
-      businessName: business.name,
-      businessLogo: business.logo,
-      businessPhone: business.phone,
-      businessEmail: business.email,
-      businessAddress: business.address,
-      type: document.type,
-      documentNumber,
-      totalAmount,
-      pdfUrl,
-    }),
-    attachments: attachment ? [attachment] : [],
+  const customerDisplayName = getCustomerDisplayName(document);
+  const textBody = buildDocumentEmailText({
+    customerName: customerDisplayName,
+    businessName: business.name,
+    businessPhone: business.phone,
+    businessEmail: business.email,
+    type: document.type,
+    documentNumber,
+    totalAmount,
+    pdfUrl,
   });
+  const htmlBody = buildDocumentEmailHtml({
+    customerName: customerDisplayName,
+    businessName: business.name,
+    businessLogo: business.logo,
+    businessPhone: business.phone,
+    businessEmail: business.email,
+    businessAddress: business.address,
+    type: document.type,
+    documentNumber,
+    totalAmount,
+    pdfUrl,
+  });
+
+  async function deliverTo(transporter: Transporter, recipient: string) {
+    await transporter.sendMail({
+      from: fromAddress,
+      to: [recipient],
+      subject,
+      text: textBody,
+      html: htmlBody,
+      attachments: attachment ? [attachment] : [],
+    });
+  }
+
+  if (audience === "customer") {
+    await deliverTo(transport, customerEmail!);
+    return {
+      sent: true,
+      to: [customerEmail!],
+      attachedPdf: Boolean(attachment),
+    };
+  }
+
+  // audience === "issue": deliver an independent copy to the business (always,
+  // for documentation) and to the customer (if a valid email exists). Each
+  // send is isolated so a single failure cannot block the other recipient.
+  const delivered: string[] = [];
+  const failures: Array<{ recipient: string; error: unknown }> = [];
+
+  if (businessEmail) {
+    try {
+      await deliverTo(transport, businessEmail);
+      delivered.push(businessEmail);
+    } catch (error) {
+      console.error("[documents:email] business copy failed", error);
+      failures.push({ recipient: businessEmail, error });
+    }
+  } else {
+    console.warn(
+      "[documents:email] business has no email configured — skipping documentation copy"
+    );
+  }
+
+  if (customerEmail && customerEmail !== businessEmail) {
+    try {
+      await deliverTo(transport, customerEmail);
+      delivered.push(customerEmail);
+    } catch (error) {
+      console.error("[documents:email] customer copy failed", error);
+      failures.push({ recipient: customerEmail, error });
+    }
+  }
+
+  if (delivered.length === 0) {
+    const reason = failures.length > 0 ? failures[0].error : null;
+    if (reason instanceof Error) throw reason;
+    throw new Error("No document email recipients");
+  }
 
   return {
     sent: true,
-    to: recipients,
+    to: delivered,
     attachedPdf: Boolean(attachment),
   };
 }

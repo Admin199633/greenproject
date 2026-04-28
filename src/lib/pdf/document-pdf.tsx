@@ -646,6 +646,26 @@ const quote = StyleSheet.create({
     lineHeight: 1.6,
     color: INK,
   },
+  termsWrap: {
+    marginTop: 28,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: DIVIDER,
+  },
+  termsTitle: {
+    fontSize: 11,
+    color: BRAND_COLOR,
+    textAlign: "right",
+    marginBottom: 8,
+    fontWeight: 700,
+  },
+  termsParagraph: {
+    fontSize: 8.5,
+    textAlign: "right",
+    lineHeight: 1.6,
+    color: INK_MUTED,
+    marginBottom: 4,
+  },
   footer: {
     position: "absolute",
     bottom: 18,
@@ -969,6 +989,34 @@ function QuotePage({ business, document }: BuildPdfInput) {
           <Text style={quote.notesText}>{sanitizeText(document.notes)}</Text>
         </View>
       ) : null}
+
+      {/* Terms / "small print" — placed at the very bottom of the document.
+          The outer View can wrap across pages (default), but the title stays
+          together with at least the first paragraph so the heading is never
+          orphaned at the page edge. */}
+      {(() => {
+        const terms = sanitizeText(document.quoteTermsText);
+        if (!terms) return null;
+        const paragraphs = terms
+          .split(/\r?\n+/)
+          .map((p) => p.trim())
+          .filter((p) => p.length > 0);
+        if (paragraphs.length === 0) return null;
+        const [firstParagraph, ...restParagraphs] = paragraphs;
+        return (
+          <View style={quote.termsWrap}>
+            <View wrap={false}>
+              <Text style={quote.termsTitle}>הערות ותנאים</Text>
+              <Text style={quote.termsParagraph}>{firstParagraph}</Text>
+            </View>
+            {restParagraphs.map((paragraph, idx) => (
+              <Text key={`terms-${idx}`} style={quote.termsParagraph}>
+                {paragraph}
+              </Text>
+            ))}
+          </View>
+        );
+      })()}
 
       <View style={quote.footer} fixed>
         <Text style={quote.footerText}>{businessName}</Text>

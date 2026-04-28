@@ -6,16 +6,19 @@ import { auditDocumentIssue } from "@/services/audit.service";
 
 type RouteCtx = { params: Promise<{ id: string }> };
 
-export async function POST(_req: Request, { params }: RouteCtx) {
+export async function POST(req: Request, { params }: RouteCtx) {
   try {
     const { id } = await params;
     const session = await requireBusiness();
     const doc = await issueDraft(id, session.id, session.ownerUserId);
     auditDocumentIssue(doc, session.ownerUserId);
 
-    void sendDocumentEmail(doc.id, session.id, { audience: "issue" }).catch((error) => {
-      console.error("[documents:email] failed", error);
-    });
+    const origin = new URL(req.url).origin;
+    void sendDocumentEmail(doc.id, session.id, { audience: "issue", origin }).catch(
+      (error) => {
+        console.error("[documents:email] failed", error);
+      }
+    );
 
     return NextResponse.json({ id: doc.id, number: doc.number });
   } catch (e) {

@@ -51,6 +51,7 @@ export default async function SettingsPage() {
               quoteNumberPrefix: business.quoteNumberPrefix ?? "QUO-",
               invoiceReceiptNumberPrefix: business.invoiceReceiptNumberPrefix ?? "INVR-",
               sendIssueNotificationEmail: business.sendIssueNotificationEmail ?? false,
+              quoteTermsText: business.quoteTermsText,
             }}
           />
         </CardContent>

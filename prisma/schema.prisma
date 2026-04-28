@@ -51,6 +51,8 @@ model Business {
   invoiceReceiptNumberPrefix String @default("INVR-")
   /// Send a notification email to business.email when a document is issued
   sendIssueNotificationEmail Boolean @default(false)
+  /// Default "small print" / terms text copied into every new QUOTE at creation time
+  quoteTermsText             String? @db.Text
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -163,6 +165,8 @@ model Document {
   eventLocation String?
   eventHours    Decimal?  @db.Decimal(5, 2)
   eventTime     String?
+  /// Quote-only "small print" / terms — snapshot copied from business.quoteTermsText at quote creation
+  quoteTermsText String? @db.Text
   receiptAmountReceived   Decimal? @db.Decimal(12, 2)
   receiptPaymentMethod    String?
   receiptPaymentReference String?

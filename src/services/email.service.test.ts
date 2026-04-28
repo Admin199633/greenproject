@@ -81,16 +81,18 @@ describe("email.service", () => {
     process.env = originalEnv;
   });
 
-  it("issue delivery sends to the business and customer when customer email exists", async () => {
+  it("issue delivery sends separate copies to the business and customer when customer email exists", async () => {
     const result = await sendDocumentEmail("doc-1", "biz-1", {
       audience: "issue",
       origin: "https://custom.example.com",
     });
 
     expect(result.to).toEqual(["business@example.com", "customer@example.com"]);
-    expect(mockSendMail).toHaveBeenCalledWith(
+    expect(mockSendMail).toHaveBeenCalledTimes(2);
+    expect(mockSendMail).toHaveBeenNthCalledWith(
+      1,
       expect.objectContaining({
-        to: ["business@example.com", "customer@example.com"],
+        to: ["business@example.com"],
         html: expect.stringContaining("צפייה / הורדת PDF"),
         text: expect.stringContaining("https://custom.example.com/green/api/public/documents/doc-1/pdf?token="),
         attachments: [
@@ -100,6 +102,25 @@ describe("email.service", () => {
         ],
       })
     );
+    expect(mockSendMail).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        to: ["customer@example.com"],
+      })
+    );
+  });
+
+  it("issue delivery still sends to the customer when the business copy fails", async () => {
+    mockSendMail
+      .mockRejectedValueOnce(new Error("smtp rejected business"))
+      .mockResolvedValueOnce({ messageId: "msg-2" });
+
+    const result = await sendDocumentEmail("doc-1", "biz-1", {
+      audience: "issue",
+    });
+
+    expect(result.to).toEqual(["customer@example.com"]);
+    expect(mockSendMail).toHaveBeenCalledTimes(2);
   });
 
   it("issue delivery sends only to the business when customer email is missing", async () => {

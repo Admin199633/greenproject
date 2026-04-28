@@ -33,6 +33,7 @@ export async function updateBusiness(
       invoiceReceiptNumberPrefix:
         data.invoiceReceiptNumberPrefix?.trim() || "INVR-",
       sendIssueNotificationEmail: data.sendIssueNotificationEmail ?? false,
+      quoteTermsText: data.quoteTermsText?.trim() || null,
     },
   });
 }

@@ -293,6 +293,15 @@ export async function createDraft(businessId: string, data: SaveDraftInput) {
   return db.$transaction(async (tx) => {
     const customer = await resolveCustomer(tx, businessId, data);
 
+    let quoteTermsSnapshot: string | null = null;
+    if (data.type === DocumentType.QUOTE) {
+      const business = await tx.business.findUnique({
+        where: { id: businessId },
+        select: { quoteTermsText: true },
+      });
+      quoteTermsSnapshot = business?.quoteTermsText?.trim() || null;
+    }
+
     const doc = await tx.document.create({
       data: {
         businessId,
@@ -316,6 +325,7 @@ export async function createDraft(businessId: string, data: SaveDraftInput) {
         eventLocation: data.eventLocation?.trim() || null,
         eventHours: data.eventHours != null ? String(data.eventHours) : null,
         eventTime: data.eventTime?.trim() || null,
+        quoteTermsText: quoteTermsSnapshot,
         ...buildReceiptDraftData(data),
         customerName: null,
         customerEmail: null,
@@ -687,6 +697,7 @@ export async function duplicateDocument(id: string, businessId: string) {
         receiptCheckBranch: source.receiptCheckBranch,
         receiptCheckAccount: source.receiptCheckAccount,
         receiptCheckDueDate: source.receiptCheckDueDate,
+        quoteTermsText: source.quoteTermsText,
         customerName: null,
         customerEmail: null,
         customerAddress: null,

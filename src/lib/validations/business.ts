@@ -36,6 +36,11 @@ export const businessSchema = z.object({
   quoteNumberPrefix: optionalStr(20, "קידומת הצעת מחיר"),
   invoiceReceiptNumberPrefix: optionalStr(20, "קידומת חשבונית קבלה"),
   sendIssueNotificationEmail: z.boolean().optional().default(false),
+  quoteTermsText: z
+    .string()
+    .max(10000, "טקסט אותיות קטנות ארוך מדי")
+    .optional()
+    .or(z.literal("")),
 });
 
 export type BusinessFormValues = z.infer<typeof businessSchema>;

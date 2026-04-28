@@ -1,5 +1,85 @@
 # Running Summary
 
+## Configurable quote terms ("אותיות קטנות")
+
+A business can now define a default block of terms / "small print" text that is automatically attached to every new quote ("הצעת מחיר") at creation time and rendered at the bottom of the quote PDF.
+
+### Schema changes
+
+- `Business.quoteTermsText String? @db.Text` — the editable default text managed from `/green/settings`.
+- `Document.quoteTermsText String? @db.Text` — the snapshot stored on the document at creation time. Once the quote exists this column is the source of truth for that quote's terms; later edits to the business default never reach back to existing quotes.
+
+### Required DB sync command
+
+Run after pulling these changes:
+
+```
+npx prisma generate
+npx prisma db push
+```
+
+`db push` adds the two nullable text columns; no data migration is required. Existing rows simply default to `NULL` (no terms shown).
+
+### Settings UI
+
+- New section in `/green/settings` → "פרטי העסק" form: **הצעות מחיר**.
+- Field: `<textarea name="quoteTermsText">` with label `אותיות קטנות להצעת מחיר` and helper `הטקסט יופיע אוטומטית בכל הצעת מחיר חדשה.`.
+- Saved through the existing `PATCH /api/business` route (`businessSchema` now accepts `quoteTermsText`, max 10,000 chars, optional).
+- Empty input is normalised to `NULL` in the DB.
+
+### Copy-into-document behaviour
+
+- `createDraft(businessId, data)` in `src/services/document.service.ts` now reads `business.quoteTermsText` inside the same transaction **only when** `data.type === DocumentType.QUOTE`, and writes it onto the new document's `quoteTermsText` column. Trim normalises whitespace; an empty/whitespace-only business value yields `NULL`.
+- `updateDraft` deliberately leaves `quoteTermsText` untouched. The terms snapshot is set at creation and is not re-pulled when the user edits a draft, so editing a draft after the business default changes does not silently rewrite the quote's terms.
+- `duplicateDocument` preserves the source document's `quoteTermsText` (consistent with how `notes`, event fields, etc. are duplicated).
+- `createDocumentFromQuote` does not copy the field — the target is an `INVOICE` / `RECEIPT` / `INVOICE_RECEIPT`, none of which render terms.
+- Existing issued quotes are untouched. Only quotes created after the schema is applied will populate `quoteTermsText`.
+
+### Quote PDF placement
+
+- `src/lib/pdf/document-pdf.tsx` — `QuotePage` now renders a "הערות ותנאים" block under the existing notes block, before the fixed footer. **Other document types are unaffected**; the legacy invoice / receipt / credit-note layout does not render this section.
+- Visual rules (per spec):
+  - title `הערות ותנאים`, brand-blue, 11 pt bold, RTL right-aligned
+  - body in a smaller 8.5 pt muted slate text, RTL, 1.6 line-height, paragraph spacing
+  - separated from the rest of the document by a thin top divider + 28 pt margin so it never feels squeezed into the main quote layout
+  - paragraphs are split on blank lines (`/\r?\n+/`) so the user's line breaks are respected
+- Pagination rules:
+  - the title + first paragraph are wrapped in `<View wrap={false}>` so the heading is never orphaned at the very bottom of a page
+  - subsequent paragraphs are siblings, not nested in the no-wrap view, so a long terms block flows naturally onto a new page when the current page runs out of room
+  - the existing fixed page footer continues to render on every page, including the overflow page
+- Field is rendered **only when** `document.quoteTermsText` is non-empty after `sanitizeText`. Quotes that pre-date the schema change (or that were created when the business had no default) render exactly as before.
+
+### Form UI
+
+- The quote form does **not** expose `quoteTermsText` as an editable field. Per spec, terms are managed only from `/green/settings`.
+
+### Files changed
+
+- `prisma/schema.prisma` (`Business.quoteTermsText`, `Document.quoteTermsText`)
+- `src/lib/validations/business.ts` (`quoteTermsText` field on `businessSchema`)
+- `src/services/business.service.ts` (writes `quoteTermsText` on update; trims empty → null)
+- `src/services/document.service.ts` (`createDraft` snapshots `business.quoteTermsText` for QUOTE; `duplicateDocument` preserves the source value)
+- `src/app/(dashboard)/settings/page.tsx` (forwards `business.quoteTermsText` into the form's default values)
+- `src/app/(dashboard)/settings/BusinessSettingsForm.tsx` (textarea + section heading + helper text; sends value through PATCH)
+- `src/lib/pdf/document-pdf.tsx` (new `quote.termsWrap` / `quote.termsTitle` / `quote.termsParagraph` styles; terms block rendered at the bottom of `QuotePage`)
+- `docs/RUNNING_SUMMARY.md`
+
+### Verification
+
+- `npx prisma generate` — clean.
+- `npx tsc --noEmit` — clean.
+- `npm run build` — clean (the pre-existing `DYNAMIC_SERVER_USAGE` notices on auth-protected API routes are unrelated to this change).
+
+### Manual smoke checklist
+
+1. `/green/settings` → "פרטי העסק" → scroll to the new "הצעות מחיר" card. Enter a multi-paragraph terms text, save, and reload the page — the textarea is repopulated.
+2. Create a new draft with `type = QUOTE`. In Prisma Studio (or DB) confirm the new `Document` row has `quoteTermsText` matching the saved business value.
+3. Create a non-quote draft (e.g. INVOICE). Confirm `quoteTermsText` on that row is `NULL`.
+4. Update the settings textarea to a different value. Confirm the existing quote draft from step 2 still has the *original* snapshot — it does not silently change.
+5. Issue the quote draft and download the PDF. Confirm the "הערות ותנאים" section appears at the bottom of the quote, in small RTL Hebrew, separated from the totals/notes by a thin divider.
+6. Save a very long terms text (e.g. 30+ short paragraphs). Issue + download a quote. Confirm the block continues onto a new page rather than being cut off, and that the fixed page footer still appears on the overflow page.
+7. Clear the textarea, save, and create a new quote — confirm the PDF renders without the terms section at all.
+
 ## Issued document email + quote follow-up drafts + receipt workflow
 
 ### Files changed

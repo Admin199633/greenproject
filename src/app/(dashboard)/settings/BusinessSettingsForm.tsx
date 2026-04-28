@@ -26,6 +26,7 @@ interface Props {
     quoteNumberPrefix?: string | null;
     invoiceReceiptNumberPrefix?: string | null;
     sendIssueNotificationEmail?: boolean | null;
+    quoteTermsText?: string | null;
   };
 }
 
@@ -59,7 +60,12 @@ export default function BusinessSettingsForm({ defaultValues }: Props) {
 
     const form = e.currentTarget;
     const get = (name: string) =>
-      (form.elements.namedItem(name) as HTMLInputElement | HTMLSelectElement)?.value ?? "";
+      (
+        form.elements.namedItem(name) as
+          | HTMLInputElement
+          | HTMLSelectElement
+          | HTMLTextAreaElement
+      )?.value ?? "";
 
     const getCheckbox = (name: string) =>
       (form.elements.namedItem(name) as HTMLInputElement)?.checked ?? false;
@@ -82,6 +88,7 @@ export default function BusinessSettingsForm({ defaultValues }: Props) {
       quoteNumberPrefix: get("quoteNumberPrefix"),
       invoiceReceiptNumberPrefix: get("invoiceReceiptNumberPrefix"),
       sendIssueNotificationEmail: getCheckbox("sendIssueNotificationEmail"),
+      quoteTermsText: get("quoteTermsText"),
     };
 
     const res = await fetch(`${API_BASE}/business`, {
@@ -241,6 +248,24 @@ export default function BusinessSettingsForm({ defaultValues }: Props) {
         <p className="text-xs text-slate-500 -mt-2">
           כאשר מסמך מונפק, תישלח הודעה לכתובת האימייל של העסק שהוגדרה למעלה.
         </p>
+      </div>
+
+      {/* Quote terms / small print */}
+      <div className="space-y-4">
+        <h3 className="text-sm font-semibold text-slate-700 border-b pb-1">הצעות מחיר</h3>
+        <div className="space-y-1.5">
+          <Label htmlFor="quoteTermsText">אותיות קטנות להצעת מחיר</Label>
+          <textarea
+            id="quoteTermsText"
+            name="quoteTermsText"
+            rows={6}
+            defaultValue={defaultValues.quoteTermsText ?? ""}
+            className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+          />
+          <p className="text-xs text-slate-500">
+            הטקסט יופיע אוטומטית בכל הצעת מחיר חדשה.
+          </p>
+        </div>
       </div>
 
       {serverError && (
