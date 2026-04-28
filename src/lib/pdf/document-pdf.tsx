@@ -991,9 +991,8 @@ function QuotePage({ business, document }: BuildPdfInput) {
       ) : null}
 
       {/* Terms / "small print" — placed at the very bottom of the document.
-          The outer View can wrap across pages (default), but the title stays
-          together with at least the first paragraph so the heading is never
-          orphaned at the page edge. */}
+          The whole block is wrap={false} so it either fits on the current page
+          or moves entirely to a new page; it must never split awkwardly. */}
       {(() => {
         const terms = sanitizeText(document.quoteTermsText);
         if (!terms) return null;
@@ -1002,14 +1001,10 @@ function QuotePage({ business, document }: BuildPdfInput) {
           .map((p) => p.trim())
           .filter((p) => p.length > 0);
         if (paragraphs.length === 0) return null;
-        const [firstParagraph, ...restParagraphs] = paragraphs;
         return (
-          <View style={quote.termsWrap}>
-            <View wrap={false}>
-              <Text style={quote.termsTitle}>הערות ותנאים</Text>
-              <Text style={quote.termsParagraph}>{firstParagraph}</Text>
-            </View>
-            {restParagraphs.map((paragraph, idx) => (
+          <View style={quote.termsWrap} wrap={false}>
+            <Text style={quote.termsTitle}>הערות ותנאים</Text>
+            {paragraphs.map((paragraph, idx) => (
               <Text key={`terms-${idx}`} style={quote.termsParagraph}>
                 {paragraph}
               </Text>
