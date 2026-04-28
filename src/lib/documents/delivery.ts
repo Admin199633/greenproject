@@ -237,18 +237,16 @@ export function buildApprovalWhatsappMessage(params: {
   customerName: string;
   approvalUrl: string;
 }) {
-  return [
-    `היי ${params.customerName} 👋`,
-    "",
-    "שלחתי לך הצעת מחיר מפוטופ 📸",
-    "",
-    "לצפייה בפרטי ההצעה ואישור התאריך:",
-    params.approvalUrl,
-    "",
-    "לאחר האישור התאריך יישמר עבורך ✅",
-    "",
-    "לכל שאלה אני כאן 🙂",
-  ].join("\n");
+  return `היי ${params.customerName} 👋
+
+שלחתי לך הצעת מחיר מפוטופ 📸
+
+לצפייה בפרטי ההצעה ואישור התאריך:
+${params.approvalUrl}
+
+לאחר האישור התאריך יישמר עבורך ✅
+
+לכל שאלה אני כאן 🙂`;
 }
 
 export function buildWhatsappMessage(params: {
@@ -276,7 +274,8 @@ export function buildWhatsappMessage(params: {
 export function buildWhatsappShareUrl(phone: string, message: string) {
   const normalizedPhone = phone.trim() ? normalizeWhatsappPhone(phone) : "";
   const phonePath = normalizedPhone ? `/${normalizedPhone}` : "/";
-  return `https://wa.me${phonePath}?text=${encodeURIComponent(message)}`;
+  const encoded = encodeURIComponent(message);
+  return `https://wa.me${phonePath}?text=${encoded}`;
 }
 
 export function formatDocumentTotal(amount: string, currency: string) {
