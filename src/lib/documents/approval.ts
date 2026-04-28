@@ -8,10 +8,21 @@ function trimTrailingSlash(value: string) {
   return value.endsWith("/") ? value.slice(0, -1) : value;
 }
 
-function getAppBaseUrl(origin?: string | null) {
-  const candidate =
-    origin?.trim() || process.env.NEXTAUTH_URL?.trim() || FALLBACK_APP_URL;
-  return trimTrailingSlash(candidate);
+function getAppOrigin(origin?: string | null) {
+  const candidates = [
+    process.env.NEXTAUTH_URL?.trim(),
+    origin?.trim(),
+    FALLBACK_APP_URL,
+  ];
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    try {
+      return new URL(candidate).origin;
+    } catch {
+      continue;
+    }
+  }
+  return trimTrailingSlash(FALLBACK_APP_URL);
 }
 
 export function generateApprovalToken(): {
@@ -31,7 +42,11 @@ export function buildApprovalPath(rawToken: string) {
   return `${APP_BASE_PATH}/approve/${encodeURIComponent(rawToken)}`;
 }
 
+export function buildShortApprovalPath(rawToken: string) {
+  return `${APP_BASE_PATH}/a/${encodeURIComponent(rawToken)}`;
+}
+
 export function buildApprovalUrl(rawToken: string, origin?: string | null) {
-  const base = getAppBaseUrl(origin);
-  return `${base}${buildApprovalPath(rawToken)}`;
+  const base = getAppOrigin(origin);
+  return `${base}${buildShortApprovalPath(rawToken)}`;
 }

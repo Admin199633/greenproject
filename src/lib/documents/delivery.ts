@@ -38,17 +38,17 @@ export function buildPublicDocumentPdfPath(documentId: string, token: string) {
   return `${APP_BASE_PATH}/api/public/documents/${documentId}/pdf?token=${encodeURIComponent(token)}`;
 }
 
-export function buildApprovalPagePath(rawToken: string) {
-  return `${APP_BASE_PATH}/approve/${encodeURIComponent(rawToken)}`;
-}
-
 export function buildAbsoluteUrl(path: string, origin?: string | null) {
-  const baseOrigin = origin?.trim() || process.env.NEXTAUTH_URL?.trim();
-  if (!baseOrigin) {
+  const candidate = origin?.trim() || process.env.NEXTAUTH_URL?.trim();
+  if (!candidate) {
     return path;
   }
 
-  return `${trimTrailingSlash(baseOrigin)}${path}`;
+  try {
+    return `${new URL(candidate).origin}${path}`;
+  } catch {
+    return `${trimTrailingSlash(candidate)}${path}`;
+  }
 }
 
 export function buildDocumentEmailSubject(type: string, documentNumber: string) {
@@ -238,16 +238,16 @@ export function buildApprovalWhatsappMessage(params: {
   approvalUrl: string;
 }) {
   return [
-    `היי ${params.customerName},`,
+    `היי ${params.customerName} 👋`,
     "",
-    "שלחתי לך הצעת מחיר מפוטופ עבור האירוע שלך.",
+    "שלחתי לך הצעת מחיר מפוטופ 📸",
     "",
-    "ניתן לצפות בפרטי ההצעה ולאשר אותה בקישור הבא:",
+    "לצפייה בפרטי ההצעה ואישור התאריך:",
     params.approvalUrl,
     "",
-    "אישור ההצעה שומר עבורך את התאריך.",
+    "לאחר האישור התאריך יישמר עבורך ✅",
     "",
-    "לכל שאלה אני כאן ",
+    "לכל שאלה אני כאן 🙂",
   ].join("\n");
 }
 

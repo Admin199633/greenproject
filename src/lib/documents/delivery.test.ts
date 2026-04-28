@@ -37,12 +37,14 @@ describe("document delivery helpers", () => {
   it("builds an approval whatsapp message", async () => {
     const { buildApprovalWhatsappMessage } = await import("@/lib/documents/delivery");
 
-    expect(
-      buildApprovalWhatsappMessage({
-        customerName: "דנה",
-        approvalUrl: "https://app.example.com/green/approve/token-1",
-      })
-    ).toContain("אישור ההצעה שומר עבורך את התאריך.");
+    const message = buildApprovalWhatsappMessage({
+      customerName: "דנה",
+      approvalUrl: "https://app.example.com/green/a/token-1",
+    });
+    expect(message).toContain("היי דנה 👋");
+    expect(message).toContain("שלחתי לך הצעת מחיר מפוטופ 📸");
+    expect(message).toContain("https://app.example.com/green/a/token-1");
+    expect(message).toContain("לאחר האישור התאריך יישמר עבורך ✅");
   });
 
   it("builds a whatsapp share url without a phone", async () => {

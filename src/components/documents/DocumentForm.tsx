@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Label } from "@/components/ui/Label";
 import { Select } from "@/components/ui/Select";
+import { Time24Input } from "@/components/ui/Time24Input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import DocumentItemsTable, {
   type ItemRow,
@@ -465,13 +466,10 @@ export default function DocumentForm({
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="eventTime">שעת האירוע</Label>
-                <Input
+                <Time24Input
                   id="eventTime"
-                  type="time"
-                  dir="ltr"
                   value={eventTime}
-                  onChange={(e) => setEventTime(e.target.value)}
-                  className="text-left"
+                  onChange={setEventTime}
                 />
               </div>
             </div>

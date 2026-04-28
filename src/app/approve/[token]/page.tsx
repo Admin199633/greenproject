@@ -99,9 +99,9 @@ export default async function ApprovePage({ params }: PageProps) {
     doc.customer.companyName?.trim() ||
     doc.customer.fullName?.trim() ||
     "לקוח/ה";
-  const businessAddressLine = [business.address, business.city, business.postalCode]
+  const businessContactLine = [business.phone, business.email]
     .filter((part) => part && part.trim())
-    .join(", ");
+    .join(" · ");
   const isApproved = Boolean(doc.approvedAt);
   const formattedEventTime = formatEventTime(doc.eventTime);
   const detailTiles = [
@@ -120,62 +120,28 @@ export default async function ApprovePage({ params }: PageProps) {
     >
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-5">
         <section className="overflow-hidden rounded-[2rem] border border-white/70 bg-[radial-gradient(circle_at_top_right,#fff9f3_0%,#fffdfa_34%,#ffffff_100%)] shadow-[0_28px_110px_rgba(15,23,42,0.10)] ring-1 ring-[#eadfd3]">
-          <div className="border-b border-[#efe5da] bg-[linear-gradient(135deg,rgba(255,248,240,0.98)_0%,rgba(255,255,255,0.9)_60%,rgba(249,244,237,0.96)_100%)] px-5 py-6 sm:px-8 sm:py-8">
-            <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-              <div className="max-w-2xl">
-                <p className="text-[11px] font-medium tracking-[0.24em] text-[#9a7b5c]">
-                  BOUTIQUE PROPOSAL
-                </p>
-                <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
+          <div className="border-b border-[#efe5da] bg-[linear-gradient(135deg,rgba(255,248,240,0.98)_0%,rgba(255,255,255,0.9)_60%,rgba(249,244,237,0.96)_100%)] px-5 py-5 sm:px-7 sm:py-6">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <h1 className="truncate text-xl font-semibold tracking-tight text-slate-900 sm:text-2xl">
                   {business.name}
                 </h1>
-                <p className="mt-3 text-base leading-8 text-slate-600">
-                  הצעת מחיר
+                <p className="mt-1 text-xs font-medium tracking-[0.18em] text-[#9a7b5c]">
+                  הצעת מחיר {doc.number ? `· ${doc.number}` : ""}
                 </p>
               </div>
-
-              <div className="grid grid-cols-2 gap-3 sm:min-w-[280px]">
-                <div className="rounded-2xl border border-[#ece1d5] bg-white/80 px-4 py-4 shadow-[0_10px_30px_rgba(148,163,184,0.08)]">
-                  <p className="text-[11px] font-medium tracking-[0.18em] text-[#9a7b5c]">
-                    מספר הצעה
-                  </p>
-                  <p className="mt-2 text-lg font-semibold text-slate-900">
-                    {doc.number ?? "—"}
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-[#ece1d5] bg-white/80 px-4 py-4 shadow-[0_10px_30px_rgba(148,163,184,0.08)]">
-                  <p className="text-[11px] font-medium tracking-[0.18em] text-[#9a7b5c]">
-                    תאריך הנפקה
-                  </p>
-                  <p className="mt-2 text-lg font-semibold text-slate-900">
-                    {doc.issueDate ? formatDate(doc.issueDate) : "—"}
-                  </p>
-                </div>
+              <div className="text-xs text-slate-500 sm:text-right">
+                {doc.issueDate && (
+                  <span>הופקה: {formatDate(doc.issueDate)}</span>
+                )}
               </div>
             </div>
 
-            <div className="mt-6 flex flex-wrap gap-3 text-sm text-slate-600">
-              {business.phone && (
-                <span className="rounded-full border border-[#ece1d5] bg-white/70 px-4 py-2">
-                  טלפון: {business.phone}
-                </span>
-              )}
-              {business.email && (
-                <span className="break-all rounded-full border border-[#ece1d5] bg-white/70 px-4 py-2">
-                  אימייל: {business.email}
-                </span>
-              )}
-              {businessAddressLine && (
-                <span className="rounded-full border border-[#ece1d5] bg-white/70 px-4 py-2">
-                  כתובת: {businessAddressLine}
-                </span>
-              )}
-              {business.taxId && (
-                <span className="rounded-full border border-[#ece1d5] bg-white/70 px-4 py-2">
-                  ע"מ / ח.פ: {business.taxId}
-                </span>
-              )}
-            </div>
+            {businessContactLine && (
+              <p className="mt-2 text-xs leading-6 text-slate-500">
+                {businessContactLine}
+              </p>
+            )}
           </div>
 
           <div className="px-5 py-5 sm:px-8 sm:py-6">
@@ -271,27 +237,13 @@ export default async function ApprovePage({ params }: PageProps) {
                     </ul>
                   )}
 
-                  <div className="mt-7 rounded-[1.5rem] border border-[#eadfd3] bg-white px-4 py-4 shadow-[0_14px_40px_rgba(148,163,184,0.08)] sm:px-5">
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                      <div className="rounded-2xl bg-[#fcf6f0] px-4 py-3">
-                        <p className="text-xs text-[#9a7b5c]">כמות</p>
-                        <p className="mt-1 text-base font-semibold text-slate-900">
-                          {item.quantity.toString()}
-                        </p>
-                      </div>
-                      <div className="rounded-2xl bg-[#fcf6f0] px-4 py-3">
-                        <p className="text-xs text-[#9a7b5c]">מחיר יחידה</p>
-                        <p className="mt-1 text-base font-semibold text-slate-900">
-                          {formatCurrency(item.unitPrice.toString())}
-                        </p>
-                      </div>
-                      <div className="rounded-2xl bg-[#f6efe8] px-4 py-3">
-                        <p className="text-xs text-[#9a7b5c]">סה"כ לחבילה</p>
-                        <p className="mt-1 text-lg font-semibold text-slate-900">
-                          {formatCurrency(item.totalAmount.toString())}
-                        </p>
-                      </div>
-                    </div>
+                  <div className="mt-7 flex items-center justify-between rounded-[1.5rem] border border-[#eadfd3] bg-[#f6efe8] px-5 py-4 shadow-[0_14px_40px_rgba(148,163,184,0.08)]">
+                    <p className="text-xs font-medium tracking-[0.18em] text-[#9a7b5c]">
+                      סה"כ לחבילה
+                    </p>
+                    <p className="text-lg font-semibold text-slate-900 tabular-nums">
+                      {formatCurrency(item.totalAmount.toString())}
+                    </p>
                   </div>
                 </section>
               );

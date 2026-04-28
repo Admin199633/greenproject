@@ -3,13 +3,13 @@ import nodemailer, { type Transporter } from "nodemailer";
 import { db } from "@/lib/db";
 import {
   buildAbsoluteUrl,
-  buildApprovalPagePath,
   buildDocumentEmailHtml,
   buildDocumentEmailSubject,
   buildDocumentEmailText,
   buildPublicDocumentPdfPath,
   formatDocumentTotal,
 } from "@/lib/documents/delivery";
+import { buildApprovalUrl } from "@/lib/documents/approval";
 import { createPublicPdfToken } from "@/lib/documents/public-pdf";
 import { renderDocumentPdf } from "@/lib/pdf/document-pdf";
 import {
@@ -116,10 +116,7 @@ export async function sendDocumentEmail(
   }
   const approvalUrl =
     document.type === DocumentType.QUOTE && approvalRawToken
-      ? buildAbsoluteUrl(
-          buildApprovalPagePath(approvalRawToken),
-          options?.origin
-        )
+      ? buildApprovalUrl(approvalRawToken, options?.origin)
       : null;
   const subject = buildDocumentEmailSubject(document.type, documentNumber);
   const filename = buildFilename(document.number, document.id);

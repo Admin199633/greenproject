@@ -1049,3 +1049,101 @@ Added server-only logging for missing auth secret:
 - `console.error("[auth] missing NEXTAUTH_SECRET")`
 
 This exists only in server code and does not expose the secret to the client.
+
+## Quote approval polish — 24h time, WhatsApp emojis, short links, compact UI
+
+UX polish pass for the customer approval flow. Approval/security/token logic is
+unchanged; pricing logic is unchanged. Visible changes only:
+
+### 24-hour Israeli time input
+
+- New `src/components/ui/Time24Input.tsx` — controlled hour/minute selects (00–23
+  hours, 15-min minute steps with passthrough for any saved value) that always
+  produce / consume an `HH:mm` string.
+- `DocumentForm.tsx` event-time field now uses `Time24Input` instead of
+  `<input type="time">`, so the picker never shows AM/PM regardless of the OS
+  locale.
+- Display sites continue to use `formatEventTime`, which already normalizes any
+  legacy `9:00 AM` value to `09:00` and renders 24-hour form on the form, the
+  approval page, the dashboard, and the PDF.
+
+### Warmer WhatsApp approval message
+
+`buildApprovalWhatsappMessage` (in `src/lib/documents/delivery.ts`) now uses the
+new emoji template:
+
+```
+היי {{customerName}} 👋
+
+שלחתי לך הצעת מחיר מפוטופ 📸
+
+לצפייה בפרטי ההצעה ואישור התאריך:
+{{approvalLink}}
+
+לאחר האישור התאריך יישמר עבורך ✅
+
+לכל שאלה אני כאן 🙂
+```
+
+The message still flows through `buildWhatsappShareUrl`, which already
+URL-encodes the body and routes to `https://wa.me/<phone>?text=…` when a phone
+is present, and `https://wa.me/?text=…` when not. Tests in
+`delivery.test.ts` updated accordingly.
+
+### Shorter, production-domain approval link
+
+- `src/lib/documents/approval.ts`:
+  - `getAppOrigin` now extracts the bare origin via `new URL(...).origin`,
+    preferring `NEXTAUTH_URL`. This is robust to `NEXTAUTH_URL` values that
+    already include the `/green` basePath (e.g. `https://liorsw.com/green`),
+    avoiding the previous double-prefix risk and ignoring vercel preview
+    hostnames in favor of the production domain.
+  - Added `buildShortApprovalPath(rawToken)` which returns `/green/a/<token>`.
+  - `buildApprovalUrl` now returns the short URL form
+    `https://liorsw.com/green/a/<token>`.
+- `src/app/a/[token]/page.tsx` — new alias route that re-exports the existing
+  `src/app/approve/[token]/page.tsx` page (`default` and `dynamic`), so both
+  `/green/a/<token>` and `/green/approve/<token>` continue to render the same
+  approval page. Existing long-form links keep working.
+- `src/lib/documents/delivery.ts`: removed unused `buildApprovalPagePath`.
+  `buildAbsoluteUrl` now also uses `new URL(origin).origin` so it stays
+  resilient to base URLs that include a path.
+- `src/services/email.service.ts` now imports `buildApprovalUrl` directly so
+  outgoing email links go through the same short-link + production-domain path.
+
+### Compact business header on the approval page
+
+`src/app/approve/[token]/page.tsx` — the top hero card was replaced with a
+compact header showing only:
+
+- business name
+- `הצעת מחיר · {number}`
+- `הופקה: {issueDate}`
+- optional small contact line `{phone} · {email}`
+
+Address, tax id, and the `BOUTIQUE PROPOSAL` block were removed.
+
+### Simplified package price display on approval page
+
+`src/app/approve/[token]/page.tsx` — each package card now shows a single
+`סה"כ לחבילה` row instead of the previous `כמות / מחיר יחידה / סה"כ` triplet.
+This is approval-page-only; PDF, dashboard, and stored item rows still keep
+quantity and unit price.
+
+### Files changed
+
+- `src/components/ui/Time24Input.tsx` (new)
+- `src/components/documents/DocumentForm.tsx`
+- `src/lib/documents/delivery.ts`
+- `src/lib/documents/delivery.test.ts`
+- `src/lib/documents/approval.ts`
+- `src/services/email.service.ts`
+- `src/app/a/[token]/page.tsx` (new alias route)
+- `src/app/approve/[token]/page.tsx`
+- `docs/RUNNING_SUMMARY.md`
+
+### Verification
+
+- `npx tsc --noEmit` — clean
+- `npm run build` — succeeds; route table now shows both `/a/[token]` and
+  `/approve/[token]` as dynamic server-rendered pages.
