@@ -5,11 +5,105 @@ import { API_BASE } from "@/lib/api-base";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import QuoteTermsModal from "./QuoteTermsModal";
+import {
+  buildApprovedQuoteOwnerWhatsappMessage,
+  buildWhatsappShareUrl,
+} from "@/lib/documents/delivery";
 
 interface ApprovalFormProps {
   token: string;
   customerName: string;
   termsText?: string | null;
+  businessPhone?: string | null;
+  customerPhone?: string | null;
+  eventDateIso?: string | null;
+  eventDateFormatted?: string | null;
+  eventTime?: string | null;
+  eventLocation?: string | null;
+  quoteNumber?: string | null;
+  totalFormatted?: string;
+  approvalLink?: string;
+}
+
+function pad(value: number) {
+  return value.toString().padStart(2, "0");
+}
+
+function formatGoogleCalendarDateTime(date: Date) {
+  return (
+    `${date.getUTCFullYear()}` +
+    `${pad(date.getUTCMonth() + 1)}` +
+    `${pad(date.getUTCDate())}` +
+    `T${pad(date.getUTCHours())}` +
+    `${pad(date.getUTCMinutes())}` +
+    `${pad(date.getUTCSeconds())}`
+  );
+}
+
+function formatGoogleCalendarDate(date: Date) {
+  return (
+    `${date.getUTCFullYear()}` +
+    `${pad(date.getUTCMonth() + 1)}` +
+    `${pad(date.getUTCDate())}`
+  );
+}
+
+function buildGoogleCalendarUrl(params: {
+  title: string;
+  details: string;
+  location?: string | null;
+  eventDateIso: string;
+  eventTime?: string | null;
+}) {
+  const eventStartUtc = new Date(params.eventDateIso);
+  if (Number.isNaN(eventStartUtc.getTime())) {
+    return null;
+  }
+
+  const url = new URL("https://calendar.google.com/calendar/render");
+  url.searchParams.set("action", "TEMPLATE");
+  url.searchParams.set("text", params.title);
+  url.searchParams.set("details", params.details);
+  if (params.location?.trim()) {
+    url.searchParams.set("location", params.location.trim());
+  }
+  url.searchParams.set("ctz", "Asia/Jerusalem");
+
+  const timeMatch = params.eventTime?.match(/^(\d{2}):(\d{2})$/);
+  if (timeMatch) {
+    const hour = Number(timeMatch[1]);
+    const minute = Number(timeMatch[2]);
+    const start = new Date(
+      Date.UTC(
+        eventStartUtc.getUTCFullYear(),
+        eventStartUtc.getUTCMonth(),
+        eventStartUtc.getUTCDate(),
+        hour,
+        minute,
+        0
+      )
+    );
+    const end = new Date(start.getTime() + 3 * 60 * 60 * 1000);
+    url.searchParams.set(
+      "dates",
+      `${formatGoogleCalendarDateTime(start)}/${formatGoogleCalendarDateTime(end)}`
+    );
+  } else {
+    const start = new Date(
+      Date.UTC(
+        eventStartUtc.getUTCFullYear(),
+        eventStartUtc.getUTCMonth(),
+        eventStartUtc.getUTCDate()
+      )
+    );
+    const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+    url.searchParams.set(
+      "dates",
+      `${formatGoogleCalendarDate(start)}/${formatGoogleCalendarDate(end)}`
+    );
+  }
+
+  return url.toString();
 }
 
 type FormState = "idle" | "loading" | "success" | "error";
@@ -18,6 +112,15 @@ export default function ApprovalForm({
   token,
   customerName,
   termsText,
+  businessPhone,
+  customerPhone,
+  eventDateIso,
+  eventDateFormatted,
+  eventTime,
+  eventLocation,
+  quoteNumber,
+  totalFormatted,
+  approvalLink,
 }: ApprovalFormProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const isDrawingRef = useRef(false);
@@ -190,6 +293,43 @@ export default function ApprovalForm({
   }
 
   if (state === "success") {
+    const effectiveApprovalLink =
+      approvalLink ?? (typeof window !== "undefined" ? window.location.href : "");
+    const ownerMessage = buildApprovedQuoteOwnerWhatsappMessage({
+      customerName,
+      customerPhone,
+      eventDate: eventDateFormatted,
+      eventTime,
+      total: totalFormatted ?? "",
+      approvalUrl: effectiveApprovalLink,
+    });
+    const businessShareUrl = buildWhatsappShareUrl(
+      businessPhone?.trim() ?? "",
+      ownerMessage
+    );
+    const calendarUrl = eventDateIso
+      ? buildGoogleCalendarUrl({
+          title: `צילום אירוע - ${customerName}`,
+          details: [
+            `לקוח: ${customerName}`,
+            customerPhone?.trim() ? `טלפון: ${customerPhone.trim()}` : null,
+            quoteNumber ? `מספר הצעה: ${quoteNumber}` : null,
+            `אישור הצעה: ${effectiveApprovalLink}`,
+          ]
+            .filter(Boolean)
+            .join("\n"),
+          location: eventLocation,
+          eventDateIso,
+          eventTime,
+        })
+      : null;
+
+    function handleBusinessWhatsapp() {
+      console.log("[whatsapp] message", ownerMessage);
+      console.log("[whatsapp] url", businessShareUrl);
+      window.open(businessShareUrl, "_blank", "noopener,noreferrer");
+    }
+
     return (
       <section className="rounded-[2rem] border border-emerald-200/80 bg-[linear-gradient(135deg,#f3fbf7_0%,#fbfffd_100%)] p-6 text-center shadow-[0_22px_60px_rgba(16,185,129,0.12)]">
         <p className="text-[11px] font-medium tracking-[0.22em] text-emerald-700">
@@ -198,6 +338,39 @@ export default function ApprovalForm({
         <p className="mt-3 text-2xl font-semibold text-slate-900">
           הצעת המחיר אושרה בהצלחה
         </p>
+        <p className="mt-2 text-sm leading-7 text-slate-600">
+          התאריך נשמר עבורך. אפשר להמשיך לפעולות הבאות:
+        </p>
+
+        <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:justify-center">
+          <button
+            type="button"
+            onClick={handleBusinessWhatsapp}
+            disabled={!businessPhone?.trim()}
+            className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-2xl bg-[#16a34a] px-5 text-sm font-semibold text-white shadow-[0_12px_30px_rgba(22,163,74,0.25)] transition-colors hover:bg-[#15803d] disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500 disabled:shadow-none"
+          >
+            שלח לי בוואטסאפ
+          </button>
+          {calendarUrl ? (
+            <a
+              href={calendarUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-2xl border border-slate-300 bg-white px-5 text-sm font-semibold text-slate-800 shadow-[0_12px_30px_rgba(15,23,42,0.08)] transition-colors hover:bg-slate-50"
+            >
+              שמור ביומן Google
+            </a>
+          ) : (
+            <span className="inline-flex min-h-[48px] items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white/60 px-5 text-xs leading-6 text-slate-500">
+              שמירה ביומן זמינה כשתאריך האירוע מוגדר בהצעה
+            </span>
+          )}
+        </div>
+        {!businessPhone?.trim() && (
+          <p className="mt-3 text-xs leading-6 text-slate-400">
+            (לא הוגדר מספר WhatsApp לעסק)
+          </p>
+        )}
       </section>
     );
   }

@@ -1147,3 +1147,130 @@ quantity and unit price.
 - `npx tsc --noEmit` — clean
 - `npm run build` — succeeds; route table now shows both `/a/[token]` and
   `/approve/[token]` as dynamic server-rendered pages.
+
+## WhatsApp emoji root cause + post-approval actions
+
+### Real cause of "emojis show as �"
+
+There was no encoding bug in the source — the bytes were correct UTF-8 in
+`delivery.ts` and the compiled chunk (e.g. `👋` for 👋, literal `✅`).
+Audit of the share path:
+
+- `src/components/documents/DocumentShareActions.tsx` has two share buttons:
+  - `שליחה ב-WhatsApp` (the prominent green button) was wired to
+    `buildWhatsappMessage`, which has **no emojis at all**.
+  - `העתקת קישור אישור` was wired to `buildApprovalWhatsappMessage`, the new
+    emoji message.
+- The previous task only updated `buildApprovalWhatsappMessage`, so clicking
+  the main green button on a quote sent the old plain-text message — no
+  emojis ever appeared. The reported `�` was the user observing "emojis are
+  missing" on the wrong code path. (No legacy escape helper, no double
+  encoding.)
+
+Fix: when `documentType === "QUOTE"` and an approval link is available,
+`handleWhatsappShare` now builds the message with `buildApprovalWhatsappMessage`
+so the emoji template is used regardless of which share button is clicked.
+Plain `buildWhatsappMessage` is still used for non-quote documents.
+
+Temporary client-side debug logs were added to both `handleWhatsappShare` and
+`handleCopyApprovalLink` (and to the new approval-page WhatsApp button), so the
+final `[whatsapp] message` and `[whatsapp] url` can be inspected in the browser
+console to confirm production hits the new path:
+
+```ts
+console.log("[whatsapp] message", message);
+console.log("[whatsapp] url", url);
+```
+
+No secrets are logged.
+
+### Post-approval actions on the approval page
+
+The success state inside `src/app/approve/[token]/ApprovalForm.tsx` previously
+showed only a static "הצעת המחיר אושרה בהצלחה" card. It now renders two
+visible actions immediately after approval:
+
+1. **`שלח לי בוואטסאפ`** — opens WhatsApp pre-addressed to the business owner
+   (`businessPhone` from business settings). Disabled with a small explanatory
+   note when `businessPhone` is not configured. Message body uses
+   `buildApprovedQuoteOwnerWhatsappMessage` (new helper in `delivery.ts`):
+
+   ```
+   הצעת מחיר אושרה ✅
+
+   לקוח: {{customerName}}
+   טלפון: {{customerPhone}}
+   תאריך האירוע: {{eventDate}}
+   שעה: {{eventTime}}
+   סה"כ: {{total}}
+
+   לצפייה בהצעה:
+   {{approvalLink}}
+   ```
+
+   Optional fields are skipped when empty. The URL goes through the existing
+   `buildWhatsappShareUrl`, so the message is `encodeURIComponent`-encoded
+   exactly once. The button merely opens WhatsApp with prepared text — no
+   automatic sending is performed or claimed.
+
+2. **`שמור ביומן Google`** — opens
+   `https://calendar.google.com/calendar/render?action=TEMPLATE` with:
+   - `text` = `צילום אירוע - {{customerName}}`
+   - `dates` = `start/end` derived from `eventDate` + `eventTime`, default
+     duration 3 hours, with `ctz=Asia/Jerusalem`. When only `eventDate` is
+     present, the URL falls back to an all-day event for that date.
+   - `details` = customer name, customer phone, quote number, approval link.
+   - `location` = `eventLocation` if available.
+
+   When `eventDate` is missing, the calendar button is replaced with a small
+   note (`שמירה ביומן זמינה כשתאריך האירוע מוגדר בהצעה`). All
+   `URL.searchParams.set(...)` calls handle URI encoding internally — single
+   encoding, no manual escaping.
+
+### Data wiring
+
+`src/app/approve/[token]/page.tsx` now passes the data the success view needs
+into `ApprovalForm`:
+
+- `businessPhone` (from `doc.business.phone`)
+- `customerPhone` (from `doc.customer.phone`)
+- `eventDateIso` (`doc.eventDate?.toISOString()`)
+- `eventDateFormatted` (Hebrew-locale string for the WhatsApp body)
+- `eventTime` (already normalized via `formatEventTime`)
+- `eventLocation`
+- `quoteNumber` (`doc.number`)
+- `totalFormatted` (`formatCurrency(doc.totalAmount)`)
+- `approvalLink` (built server-side via `buildApprovalUrl(token)` so the link
+  always points at `https://liorsw.com/green/a/<token>` regardless of the
+  hostname the customer reached the page through)
+
+### Files changed
+
+- `src/lib/documents/delivery.ts` — added
+  `buildApprovedQuoteOwnerWhatsappMessage`.
+- `src/components/documents/DocumentShareActions.tsx` — `handleWhatsappShare`
+  now uses the emoji approval message for quotes; debug logs added.
+- `src/app/approve/[token]/page.tsx` — passes the new props to `ApprovalForm`.
+- `src/app/approve/[token]/ApprovalForm.tsx` — new `success` view with
+  WhatsApp + Google Calendar buttons, plus calendar URL builder.
+- `docs/RUNNING_SUMMARY.md`
+
+### Verification
+
+- `npx tsc --noEmit` — clean
+- `npm run build` — succeeds; the new emoji template literal is present in
+  the compiled chunk (`👋`, `📸`, `✅`, `🙂`).
+- Jest: `delivery.test.ts` 7/7 passes.
+- Manual smoke (still pending in production):
+  1. Open an approval link, approve the quote with signature.
+  2. The success card should now show the two action buttons.
+  3. Click `שלח לי בוואטסאפ`; verify the opened wa.me URL targets the
+     business phone and the decoded `text` param contains `הצעת מחיר אושרה ✅`
+     plus the customer/event/total fields.
+  4. Click `שמור ביומן Google`; verify the new event dialog opens with
+     `צילום אירוע - {customer}` as title, the right date/time, and the
+     details body.
+  5. From the document page, click the green `שליחה ב-WhatsApp` button on a
+     quote; the browser console should print `[whatsapp] message` containing
+     the emoji template, and the URL should target wa.me with that emoji
+     payload.

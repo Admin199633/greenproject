@@ -1,4 +1,5 @@
 import { buildPublicDocumentPdfPath } from "@/lib/documents/delivery";
+import { buildApprovalUrl } from "@/lib/documents/approval";
 import { createPublicPdfToken } from "@/lib/documents/public-pdf";
 import { formatCurrency, formatDate, formatEventTime } from "@/lib/utils";
 import { findQuoteByApprovalToken } from "@/services/document.service";
@@ -263,6 +264,17 @@ export default async function ApprovePage({ params }: PageProps) {
             token={token}
             customerName={customerName}
             termsText={doc.quoteTermsText}
+            businessPhone={business.phone ?? null}
+            customerPhone={doc.customer.phone ?? null}
+            eventDateIso={doc.eventDate ? doc.eventDate.toISOString() : null}
+            eventDateFormatted={
+              doc.eventDate ? formatDate(doc.eventDate) : null
+            }
+            eventTime={formattedEventTime || null}
+            eventLocation={doc.eventLocation ?? null}
+            quoteNumber={doc.number ?? null}
+            totalFormatted={formatCurrency(doc.totalAmount.toString())}
+            approvalLink={buildApprovalUrl(token)}
           />
         )}
 

@@ -271,6 +271,30 @@ export function buildWhatsappMessage(params: {
   return lines.join("\n");
 }
 
+export function buildApprovedQuoteOwnerWhatsappMessage(params: {
+  customerName: string;
+  customerPhone?: string | null;
+  eventDate?: string | null;
+  eventTime?: string | null;
+  total: string;
+  approvalUrl: string;
+}) {
+  const lines: string[] = ["הצעת מחיר אושרה ✅", ""];
+  lines.push(`לקוח: ${params.customerName}`);
+  if (params.customerPhone?.trim()) {
+    lines.push(`טלפון: ${params.customerPhone.trim()}`);
+  }
+  if (params.eventDate?.trim()) {
+    lines.push(`תאריך האירוע: ${params.eventDate.trim()}`);
+  }
+  if (params.eventTime?.trim()) {
+    lines.push(`שעה: ${params.eventTime.trim()}`);
+  }
+  lines.push(`סה"כ: ${params.total}`);
+  lines.push("", "לצפייה בהצעה:", params.approvalUrl);
+  return lines.join("\n");
+}
+
 export function buildWhatsappShareUrl(phone: string, message: string) {
   const normalizedPhone = phone.trim() ? normalizeWhatsappPhone(phone) : "";
   const phonePath = normalizedPhone ? `/${normalizedPhone}` : "/";

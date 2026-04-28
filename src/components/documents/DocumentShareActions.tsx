@@ -86,20 +86,27 @@ export default function DocumentShareActions({
         ? await getApprovalUrl()
         : approvalLink;
 
-    const message = buildWhatsappMessage({
-      customerName,
-      type: documentType,
-      documentNumber,
-      totalAmount: totalAmountFormatted,
-      pdfUrl,
-      approvalUrl: quoteApprovalUrl ?? null,
-    });
+    const message =
+      documentType === "QUOTE" && quoteApprovalUrl
+        ? buildApprovalWhatsappMessage({
+            customerName,
+            approvalUrl: quoteApprovalUrl,
+          })
+        : buildWhatsappMessage({
+            customerName,
+            type: documentType,
+            documentNumber,
+            totalAmount: totalAmountFormatted,
+            pdfUrl,
+            approvalUrl: quoteApprovalUrl ?? null,
+          });
 
-    window.open(
-      buildWhatsappShareUrl(customerPhone?.trim() ?? "", message),
-      "_blank",
-      "noopener,noreferrer"
-    );
+    const url = buildWhatsappShareUrl(customerPhone?.trim() ?? "", message);
+
+    console.log("[whatsapp] message", message);
+    console.log("[whatsapp] url", url);
+
+    window.open(url, "_blank", "noopener,noreferrer");
   }
 
   async function handleCopyApprovalLink() {
@@ -116,11 +123,12 @@ export default function DocumentShareActions({
         await navigator.clipboard.writeText(url);
       }
 
-      window.open(
-        buildWhatsappShareUrl(customerPhone?.trim() ?? "", message),
-        "_blank",
-        "noopener,noreferrer"
-      );
+      const shareUrl = buildWhatsappShareUrl(customerPhone?.trim() ?? "", message);
+
+      console.log("[whatsapp] message", message);
+      console.log("[whatsapp] url", shareUrl);
+
+      window.open(shareUrl, "_blank", "noopener,noreferrer");
       toast("קישור האישור הוכן ונפתח ב-WhatsApp");
     } catch (error) {
       const message =
