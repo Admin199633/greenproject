@@ -37,6 +37,13 @@ export async function PATCH(req: Request) {
   try {
     const business = await requireBusiness();
     const body = await req.json();
+    console.debug("[approval-template] api PATCH body", {
+      approvalWhatsappMessageTemplate:
+        body?.approvalWhatsappMessageTemplate ?? null,
+      hasReplacement:
+        typeof body?.approvalWhatsappMessageTemplate === "string" &&
+        body.approvalWhatsappMessageTemplate.includes("\uFFFD"),
+    });
 
     const parsed = businessSchema.safeParse(body);
     if (!parsed.success) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Label } from "@/components/ui/Label";
@@ -52,6 +52,22 @@ export default function BusinessSettingsForm({ defaultValues }: Props) {
   const [errors, setErrors] = useState<Partial<Record<keyof BusinessFormValues, string>>>({});
   const [serverError, setServerError] = useState<string | null>(null);
 
+  useEffect(() => {
+    const textarea = document.getElementById(
+      "approvalWhatsappMessageTemplate"
+    ) as HTMLTextAreaElement | null;
+    console.debug("[approval-template] settings mount", {
+      defaultValueProp: defaultValues.approvalWhatsappMessageTemplate ?? null,
+      defaultValuePropHasReplacement:
+        (defaultValues.approvalWhatsappMessageTemplate ?? "").includes("\uFFFD"),
+      domDefaultValue: textarea?.defaultValue ?? null,
+      domDefaultValueHasReplacement:
+        textarea?.defaultValue.includes("\uFFFD") ?? false,
+      domValue: textarea?.value ?? null,
+      domValueHasReplacement: textarea?.value.includes("\uFFFD") ?? false,
+    });
+  }, [defaultValues.approvalWhatsappMessageTemplate]);
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setIsPending(true);
@@ -92,6 +108,12 @@ export default function BusinessSettingsForm({ defaultValues }: Props) {
       quoteTermsText: get("quoteTermsText"),
       approvalWhatsappMessageTemplate: get("approvalWhatsappMessageTemplate"),
     };
+
+    console.debug("[approval-template] settings before submit", {
+      approvalWhatsappMessageTemplate: data.approvalWhatsappMessageTemplate,
+      hasReplacement:
+        data.approvalWhatsappMessageTemplate?.includes("\uFFFD") ?? false,
+    });
 
     const res = await fetch(`${API_BASE}/business`, {
       method: "PATCH",

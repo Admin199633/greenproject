@@ -30,6 +30,12 @@ export default async function SettingsPage() {
   }
 
   console.log(`[perf] settings page total ${Date.now() - t0}ms`);
+  console.debug("[approval-template] settings reload business", {
+    approvalWhatsappMessageTemplate:
+      business.approvalWhatsappMessageTemplate ?? null,
+    hasReplacement:
+      business.approvalWhatsappMessageTemplate?.includes("\uFFFD") ?? false,
+  });
 
   return (
     <div className="max-w-2xl space-y-6">

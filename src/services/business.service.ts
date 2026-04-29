@@ -12,6 +12,13 @@ export async function updateBusiness(
   businessId: string,
   data: BusinessFormValues
 ) {
+  console.debug("[approval-template] service before prisma update", {
+    businessId,
+    approvalWhatsappMessageTemplate:
+      data.approvalWhatsappMessageTemplate ?? null,
+    hasReplacement:
+      data.approvalWhatsappMessageTemplate?.includes("\uFFFD") ?? false,
+  });
   return db.business.update({
     where: { id: businessId },
     data: {

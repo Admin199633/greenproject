@@ -312,6 +312,19 @@ export function buildApprovalShareMessage(params: {
     message = replaceTemplateToken(message, token, value);
   }
 
+  console.debug("[approval-template] buildApprovalShareMessage", {
+    rawTemplate:
+      params.template?.trim() || DEFAULT_APPROVAL_WHATSAPP_MESSAGE_TEMPLATE,
+    rawTemplateHasReplacement:
+      (params.template?.trim() || DEFAULT_APPROVAL_WHATSAPP_MESSAGE_TEMPLATE).includes(
+        "\uFFFD"
+      ),
+    renderedMessage: message,
+    renderedMessageHasReplacement: message.includes("\uFFFD"),
+    encodedMessage: encodeURIComponent(message),
+    encodedMessageHasReplacement: encodeURIComponent(message).includes("\uFFFD"),
+  });
+
   return message;
 
   const name = params.customerName?.trim() || "לקוח";

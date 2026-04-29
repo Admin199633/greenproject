@@ -44,6 +44,14 @@ export default async function DocumentDetailPage({ params }: PageProps) {
     doc.eventTime = formatEventTime(doc.eventTime);
   }
 
+  console.debug("[approval-template] document detail business template", {
+    documentId: doc.id,
+    approvalWhatsappMessageTemplate:
+      business.approvalWhatsappMessageTemplate ?? null,
+    hasReplacement:
+      business.approvalWhatsappMessageTemplate?.includes("\uFFFD") ?? false,
+  });
+
   const isDraft = doc.status === "DRAFT";
   const canCancelDocument = doc.status === "ISSUED" && doc.amountPaid.eq(0);
   const canCreateCreditNote =

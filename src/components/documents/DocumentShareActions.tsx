@@ -84,6 +84,11 @@ export default function DocumentShareActions({
 
     try {
       const url = await getApprovalUrl();
+      console.debug("[approval-template] document action before build", {
+        template: approvalWhatsappMessageTemplate ?? null,
+        templateHasReplacement:
+          approvalWhatsappMessageTemplate?.includes("\uFFFD") ?? false,
+      });
       const message = buildApprovalShareMessage({
         customerName,
         approvalUrl: url,
@@ -104,6 +109,17 @@ export default function DocumentShareActions({
 
       const encodedMessage = encodeURIComponent(message);
       const shareUrl = buildWhatsappShareUrl(phone, message);
+      console.debug("[approval-template] document action after build", {
+        rawTemplate: approvalWhatsappMessageTemplate ?? null,
+        renderedMessage: message,
+        encodedMessage,
+        finalWhatsappUrl: shareUrl,
+        templateHasReplacement:
+          approvalWhatsappMessageTemplate?.includes("\uFFFD") ?? false,
+        renderedMessageHasReplacement: message.includes("\uFFFD"),
+        encodedMessageHasReplacement: encodedMessage.includes("\uFFFD"),
+        finalWhatsappUrlHasReplacement: shareUrl.includes("\uFFFD"),
+      });
       console.debug("[whatsapp-share] raw message", message);
       console.debug("[whatsapp-share] encoded message", encodedMessage);
       console.debug("[whatsapp-share] final whatsappUrl", shareUrl);
