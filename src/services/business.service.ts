@@ -34,6 +34,8 @@ export async function updateBusiness(
         data.invoiceReceiptNumberPrefix?.trim() || "INVR-",
       sendIssueNotificationEmail: data.sendIssueNotificationEmail ?? false,
       quoteTermsText: data.quoteTermsText?.trim() || null,
+      approvalWhatsappMessageTemplate:
+        data.approvalWhatsappMessageTemplate?.trim() || null,
     },
   });
 }

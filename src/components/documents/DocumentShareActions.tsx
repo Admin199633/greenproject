@@ -15,6 +15,11 @@ interface Props {
   customerName: string;
   customerPhone: string | null;
   publicPdfToken: string;
+  businessName?: string | null;
+  approvalWhatsappMessageTemplate?: string | null;
+  eventDate?: string | null;
+  eventTime?: string | null;
+  eventLocation?: string | null;
   approvalUrl?: string | null;
   canCopyApprovalLink?: boolean;
 }
@@ -41,6 +46,11 @@ export default function DocumentShareActions({
   customerName,
   customerPhone,
   publicPdfToken,
+  businessName,
+  approvalWhatsappMessageTemplate,
+  eventDate,
+  eventTime,
+  eventLocation,
   approvalUrl,
   canCopyApprovalLink = false,
 }: Props) {
@@ -77,6 +87,11 @@ export default function DocumentShareActions({
       const message = buildApprovalShareMessage({
         customerName,
         approvalUrl: url,
+        businessName,
+        eventDate,
+        eventTime,
+        eventLocation,
+        template: approvalWhatsappMessageTemplate,
       });
 
       const phone = customerPhone?.trim() ?? "";

@@ -112,6 +112,13 @@ export default async function DocumentDetailPage({ params }: PageProps) {
                   customerName={doc.customerName ?? getDisplayName(doc.customer)}
                   customerPhone={doc.customer.phone}
                   publicPdfToken={publicPdfToken}
+                  businessName={business.name}
+                  approvalWhatsappMessageTemplate={
+                    business.approvalWhatsappMessageTemplate
+                  }
+                  eventDate={doc.eventDate ? formatDate(doc.eventDate) : null}
+                  eventTime={doc.eventTime ?? null}
+                  eventLocation={doc.eventLocation ?? null}
                   canCopyApprovalLink={showQuoteApproval && !doc.approvedAt}
                 />
               )}

@@ -63,6 +63,8 @@ export default async function SettingsPage() {
               invoiceReceiptNumberPrefix: business.invoiceReceiptNumberPrefix ?? "INVR-",
               sendIssueNotificationEmail: business.sendIssueNotificationEmail ?? false,
               quoteTermsText: business.quoteTermsText,
+              approvalWhatsappMessageTemplate:
+                business.approvalWhatsappMessageTemplate,
             }}
           />
         </CardContent>

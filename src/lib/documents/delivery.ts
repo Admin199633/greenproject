@@ -233,10 +233,42 @@ export function normalizeWhatsappPhone(phone: string) {
   return normalized;
 }
 
+export const DEFAULT_APPROVAL_WHATSAPP_MESSAGE_TEMPLATE = `היי {customerName} 👋
+
+שלחתי לך הצעת מחיר מפוטופ 📸
+
+לצפייה בפרטי ההצעה ואישור התאריך:
+{approvalUrl}
+
+לאחר האישור התאריך יישמר עבורך ✅
+
+לכל שאלה אני כאן 🙂`;
+
+function replaceTemplateToken(
+  template: string,
+  token: string,
+  value: string
+) {
+  return template.split(token).join(value);
+}
+
+function normalizeApprovalTemplateValue(
+  value: string | null | undefined,
+  fallback: string
+) {
+  const normalized = value?.trim();
+  return normalized ? normalized : fallback;
+}
+
 export function buildApprovalWhatsappMessage(params: {
   customerName: string;
   approvalUrl: string;
 }) {
+  return buildApprovalShareMessage({
+    customerName: params.customerName,
+    approvalUrl: params.approvalUrl,
+  });
+
   return `היי ${params.customerName} 
 
 שלחתי לך הצעת מחיר מפוטופ 
@@ -252,7 +284,36 @@ ${params.approvalUrl}
 export function buildApprovalShareMessage(params: {
   customerName: string | null | undefined;
   approvalUrl: string;
+  businessName?: string | null | undefined;
+  eventDate?: string | null | undefined;
+  eventTime?: string | null | undefined;
+  eventLocation?: string | null | undefined;
+  template?: string | null | undefined;
 }) {
+  const values = {
+    "{customerName}": normalizeApprovalTemplateValue(
+      params.customerName,
+      "לקוח"
+    ),
+    "{approvalUrl}": normalizeApprovalTemplateValue(params.approvalUrl, "—"),
+    "{eventDate}": normalizeApprovalTemplateValue(params.eventDate, "—"),
+    "{eventTime}": normalizeApprovalTemplateValue(params.eventTime, "—"),
+    "{eventLocation}": normalizeApprovalTemplateValue(
+      params.eventLocation,
+      "—"
+    ),
+    "{businessName}": normalizeApprovalTemplateValue(params.businessName, "—"),
+  } as const;
+
+  let message =
+    params.template?.trim() || DEFAULT_APPROVAL_WHATSAPP_MESSAGE_TEMPLATE;
+
+  for (const [token, value] of Object.entries(values)) {
+    message = replaceTemplateToken(message, token, value);
+  }
+
+  return message;
+
   const name = params.customerName?.trim() || "לקוח";
   return `היי ${name} 
 

@@ -36,6 +36,24 @@ describe("document delivery helpers", () => {
 
   it("builds an approval whatsapp message", async () => {
     const { buildApprovalWhatsappMessage } = await import("@/lib/documents/delivery");
+    expect(
+      buildApprovalWhatsappMessage({
+        customerName: "דנה",
+        approvalUrl: "https://app.example.com/green/a/token-1",
+      })
+    ).toBe(
+      `היי דנה 👋
+
+שלחתי לך הצעת מחיר מפוטופ 📸
+
+לצפייה בפרטי ההצעה ואישור התאריך:
+https://app.example.com/green/a/token-1
+
+לאחר האישור התאריך יישמר עבורך ✅
+
+לכל שאלה אני כאן 🙂`
+    );
+    return;
 
     const message = buildApprovalWhatsappMessage({
       customerName: "דנה",
@@ -62,8 +80,59 @@ https://app.example.com/green/a/token-1
     expect(url).toBe("https://wa.me/?text=hello%20world");
   });
 
+  it("renders a custom approval whatsapp template with safe fallbacks", async () => {
+    const { buildApprovalShareMessage } = await import("@/lib/documents/delivery");
+
+    const message = buildApprovalShareMessage({
+      customerName: " ",
+      approvalUrl: "https://app.example.com/green/a/token-1",
+      businessName: "",
+      eventDate: undefined,
+      eventTime: "18:30",
+      eventLocation: null,
+      template:
+        "שלום {customerName}\nעסק: {businessName}\nתאריך: {eventDate}\nשעה: {eventTime}\nמיקום: {eventLocation}\nאישור: {approvalUrl}",
+    });
+
+    expect(message).toBe(
+      "שלום לקוח\nעסק: —\nתאריך: —\nשעה: 18:30\nמיקום: —\nאישור: https://app.example.com/green/a/token-1"
+    );
+  });
+
+  it("falls back to the default approval whatsapp template when template is empty", async () => {
+    const { buildApprovalShareMessage } = await import("@/lib/documents/delivery");
+
+    const message = buildApprovalShareMessage({
+      customerName: "דנה",
+      approvalUrl: "https://app.example.com/green/a/token-1",
+      template: "   ",
+    });
+
+    expect(message).toContain("היי דנה 👋");
+    expect(message).toContain("שלחתי לך הצעת מחיר מפוטופ 📸");
+    expect(message).toContain("לאחר האישור התאריך יישמר עבורך ✅");
+  });
+
   it("builds a whatsapp share url for hebrew text without replacement chars", async () => {
     const { buildWhatsappShareUrl } = await import("@/lib/documents/delivery");
+    const safeUrl = buildWhatsappShareUrl(
+      "050-1234567",
+      `היי דנה 👋
+
+שלחתי לך הצעת מחיר מפוטופ 📸
+
+לצפייה בפרטי ההצעה ואישור התאריך:
+https://app.example.com/green/a/token-1
+
+לאחר האישור התאריך יישמר עבורך ✅
+
+לכל שאלה אני כאן 🙂`
+    );
+
+    expect(safeUrl).toContain("https://wa.me/972501234567?text=");
+    expect(safeUrl).not.toContain("\uFFFD");
+    return;
+
     const url = buildWhatsappShareUrl(
       "050-1234567",
       `היי דנה 

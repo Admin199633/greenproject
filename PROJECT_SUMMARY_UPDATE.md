@@ -5,6 +5,40 @@ Read this before starting any task.
 
 ---
 
+## [2026-04-29] Configurable Approval WhatsApp Template In Business Settings
+
+FILES:
+- `prisma/schema.prisma`
+- `src/lib/validations/business.ts`
+- `src/services/business.service.ts`
+- `src/app/(dashboard)/settings/BusinessSettingsForm.tsx`
+- `src/app/(dashboard)/settings/page.tsx`
+- `src/app/(dashboard)/documents/[id]/page.tsx`
+- `src/components/documents/DocumentShareActions.tsx`
+- `src/lib/documents/delivery.ts`
+- `src/lib/documents/delivery.test.ts`
+
+DONE:
+- Added `Business.approvalWhatsappMessageTemplate String? @db.Text` so each business can store a customer-facing WhatsApp template for quote approval links.
+- Wired the new field through the existing business settings PATCH flow.
+- `/green/settings` now includes a textarea titled `הודעת וואטסאפ לשליחת הצעת מחיר` with the documented variables `{customerName}`, `{approvalUrl}`, `{eventDate}`, `{eventTime}`, `{eventLocation}`, `{businessName}`.
+- `DocumentShareActions` now receives the business template plus quote/business context from the document detail page and builds the customer WhatsApp approval message from that template.
+- Added centralized template rendering in `src/lib/documents/delivery.ts` with an emoji-rich default template fallback, token replacement, and safe fallbacks (`לקוח` for `customerName`, `—` for the other variables).
+- `buildWhatsappShareUrl()` remains the only place that applies `encodeURIComponent`.
+
+NOT CHANGED:
+- Phone normalization in `normalizeWhatsappPhone()` is untouched.
+- The post-approval owner WhatsApp redirect flow is untouched.
+- The pre-`window.open` WhatsApp debug logging in `DocumentShareActions` remains in place.
+
+VERIFICATION:
+- `npx prisma generate` — clean.
+- `npm run build` — succeeds.
+- `npm test` — 6/6 suites, 62/62 tests pass.
+
+NOTES:
+- Database still needs `npx prisma db push` in the target environment so the new nullable `approvalWhatsappMessageTemplate` column exists before settings writes to it.
+
 ## [2026-04-29] Approval Share — WhatsApp Message Body Replaced
 
 FILES:

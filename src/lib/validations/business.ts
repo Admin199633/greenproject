@@ -41,6 +41,11 @@ export const businessSchema = z.object({
     .max(10000, "טקסט אותיות קטנות ארוך מדי")
     .optional()
     .or(z.literal("")),
+  approvalWhatsappMessageTemplate: z
+    .string()
+    .max(10000, "תבנית הודעת וואטסאפ ארוכה מדי")
+    .optional()
+    .or(z.literal("")),
 });
 
 export type BusinessFormValues = z.infer<typeof businessSchema>;

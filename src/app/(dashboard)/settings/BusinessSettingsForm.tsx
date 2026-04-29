@@ -27,6 +27,7 @@ interface Props {
     invoiceReceiptNumberPrefix?: string | null;
     sendIssueNotificationEmail?: boolean | null;
     quoteTermsText?: string | null;
+    approvalWhatsappMessageTemplate?: string | null;
   };
 }
 
@@ -89,6 +90,7 @@ export default function BusinessSettingsForm({ defaultValues }: Props) {
       invoiceReceiptNumberPrefix: get("invoiceReceiptNumberPrefix"),
       sendIssueNotificationEmail: getCheckbox("sendIssueNotificationEmail"),
       quoteTermsText: get("quoteTermsText"),
+      approvalWhatsappMessageTemplate: get("approvalWhatsappMessageTemplate"),
     };
 
     const res = await fetch(`${API_BASE}/business`, {
@@ -265,6 +267,30 @@ export default function BusinessSettingsForm({ defaultValues }: Props) {
           <p className="text-xs text-slate-500">
             הטקסט יופיע אוטומטית בכל הצעת מחיר חדשה.
           </p>
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        <h3 className="text-sm font-semibold text-slate-700 border-b pb-1">הודעות ללקוחות</h3>
+        <div className="space-y-1.5">
+          <Label htmlFor="approvalWhatsappMessageTemplate">
+            הודעת וואטסאפ לשליחת הצעת מחיר
+          </Label>
+          <textarea
+            id="approvalWhatsappMessageTemplate"
+            name="approvalWhatsappMessageTemplate"
+            rows={8}
+            defaultValue={defaultValues.approvalWhatsappMessageTemplate ?? ""}
+            className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+          />
+          <p className="text-xs text-slate-500">
+            אפשר להשתמש במשתנים: {"{customerName}"}, {"{approvalUrl}"}, {"{eventDate}"}, {"{eventTime}"}, {"{eventLocation}"}, {"{businessName}"}
+          </p>
+          {errors.approvalWhatsappMessageTemplate && (
+            <p className="text-xs text-red-600">
+              {errors.approvalWhatsappMessageTemplate}
+            </p>
+          )}
         </div>
       </div>
 

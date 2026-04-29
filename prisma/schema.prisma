@@ -58,6 +58,8 @@ model Business {
   sendIssueNotificationEmail Boolean @default(false)
   /// Default "small print" / terms text copied into every new QUOTE at creation time
   quoteTermsText             String? @db.Text
+  /// Optional customer-facing WhatsApp template for quote approval links
+  approvalWhatsappMessageTemplate String? @db.Text
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
