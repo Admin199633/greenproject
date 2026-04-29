@@ -87,7 +87,16 @@ export default function DocumentShareActions({
         return;
       }
 
+      const encodedMessage = encodeURIComponent(message);
       const shareUrl = buildWhatsappShareUrl(phone, message);
+      console.debug("[whatsapp-share] raw message", message);
+      console.debug("[whatsapp-share] encoded message", encodedMessage);
+      console.debug("[whatsapp-share] final whatsappUrl", shareUrl);
+      console.debug("[whatsapp-share] contains replacement char", {
+        rawMessageHasReplacement: message.includes("\uFFFD"),
+        encodedMessageHasReplacement: encodedMessage.includes("\uFFFD"),
+        whatsappUrlHasReplacement: shareUrl.includes("\uFFFD"),
+      });
       window.open(shareUrl, "_blank", "noopener,noreferrer");
     } catch (error) {
       const message =

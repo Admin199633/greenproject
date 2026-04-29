@@ -237,16 +237,16 @@ export function buildApprovalWhatsappMessage(params: {
   customerName: string;
   approvalUrl: string;
 }) {
-  return `היי ${params.customerName} 👋
+  return `היי ${params.customerName} 
 
-שלחתי לך הצעת מחיר מפוטופ 📸
+שלחתי לך הצעת מחיר מפוטופ 
 
 לצפייה בפרטי ההצעה ואישור התאריך:
 ${params.approvalUrl}
 
 לאחר האישור התאריך יישמר עבורך ✅
 
-לכל שאלה אני כאן 🙂`;
+לכל שאלה אני כאן `;
 }
 
 export function buildApprovalShareMessage(params: {
@@ -254,16 +254,16 @@ export function buildApprovalShareMessage(params: {
   approvalUrl: string;
 }) {
   const name = params.customerName?.trim() || "לקוח";
-  return `היי ${name} 👋
+  return `היי ${name} 
 
-שלחתי לך הצעת מחיר מפוטופ 📸
+שלחתי לך הצעת מחיר מפוטופ 
 
 לצפייה בפרטי ההצעה ואישור התאריך:
 ${params.approvalUrl}
 
 לאחר האישור התאריך יישמר עבורך ✅
 
-לכל שאלה אני כאן 🙂`;
+לכל שאלה אני כאן `;
 }
 
 export function buildWhatsappMessage(params: {

@@ -21,7 +21,8 @@
       "Bash(curl -L --max-time 30 -o \"C:/Users/liorsw/Downloads/green/public/fonts/Heebo-Regular.ttf\" \"https://fonts.gstatic.com/s/heebo/v28/NGSpv5_NC0k9P_v6ZUCbLRAHxK1EiSyccg.ttf\")",
       "Bash(curl -L --max-time 30 -o \"C:/Users/liorsw/Downloads/green/public/fonts/Heebo-Bold.ttf\" \"https://fonts.gstatic.com/s/heebo/v28/NGSpv5_NC0k9P_v6ZUCbLRAHxK1Ebiuccg.ttf\")",
       "Bash(echo \"EXIT=$?\")",
-      "Bash(npx jest *)"
+      "Bash(npx jest *)",
+      "Bash(xxd src/lib/documents/delivery.ts)"
     ]
   }
 }

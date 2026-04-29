@@ -41,10 +41,18 @@ describe("document delivery helpers", () => {
       customerName: "דנה",
       approvalUrl: "https://app.example.com/green/a/token-1",
     });
-    expect(message).toContain("היי דנה 👋");
-    expect(message).toContain("שלחתי לך הצעת מחיר מפוטופ 📸");
-    expect(message).toContain("https://app.example.com/green/a/token-1");
-    expect(message).toContain("לאחר האישור התאריך יישמר עבורך ✅");
+    expect(message).toBe(
+      `היי דנה 
+
+שלחתי לך הצעת מחיר מפוטופ 
+
+לצפייה בפרטי ההצעה ואישור התאריך:
+https://app.example.com/green/a/token-1
+
+לאחר האישור התאריך יישמר עבורך ✅
+
+לכל שאלה אני כאן `
+    );
   });
 
   it("builds a whatsapp share url without a phone", async () => {
@@ -52,6 +60,26 @@ describe("document delivery helpers", () => {
     const url = buildWhatsappShareUrl("", "hello world");
 
     expect(url).toBe("https://wa.me/?text=hello%20world");
+  });
+
+  it("builds a whatsapp share url for hebrew text without replacement chars", async () => {
+    const { buildWhatsappShareUrl } = await import("@/lib/documents/delivery");
+    const url = buildWhatsappShareUrl(
+      "050-1234567",
+      `היי דנה 
+
+שלחתי לך הצעת מחיר מפוטופ 
+
+לצפייה בפרטי ההצעה ואישור התאריך:
+https://app.example.com/green/a/token-1
+
+לאחר האישור התאריך יישמר עבורך ✅
+
+לכל שאלה אני כאן `
+    );
+
+    expect(url).toContain("https://wa.me/972501234567?text=");
+    expect(url).not.toContain("\uFFFD");
   });
 
   it("builds the owner approval redirect message with em-dash fallbacks", async () => {
