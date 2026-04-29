@@ -865,3 +865,69 @@ AREA: Compliance / Financial Integrity
 VERIFICATION: `npx tsc --noEmit` — clean, 0 errors.
 
 ---
+
+## [2026-04-29] WhatsApp Redirect After Quote Approval
+
+AREA: Customer flow / owner notification
+
+### What changed
+
+After a customer approves a quote, the success response now includes a
+`https://wa.me/...` URL that opens a WhatsApp chat with the business owner
+pre-filled with a Hebrew approval message. The client redirects via
+`window.location.href` immediately after the success state is set. Calendar
+event creation still runs first and is unaffected.
+
+### Files
+
+* `src/lib/documents/delivery.ts` — new `buildOwnerApprovalRedirectWhatsappMessage()`
+  helper. Reuses the existing `normalizeWhatsappPhone()` (`050X → 972X`,
+  `+972 → 972`, strips non-digits) and `buildWhatsappShareUrl()`.
+* `src/lib/documents/delivery.test.ts` — added test asserting the exact
+  message format and the em-dash (`—`) fallbacks.
+* `src/services/document.service.ts` — `recordQuoteApproval()` now also
+  returns `whatsappRedirectUrl: string | null`. Built by a new private
+  `buildOwnerApprovalWhatsappRedirectUrl()` that:
+  * loads `business.phone`, document `customerName`/`eventDate`/`eventTime`,
+    and the customer phone,
+  * formats `eventDate` via existing `formatDate()` and `eventTime` via
+    `formatEventTime()`,
+  * returns `null` if `business.phone` is missing — in that case the route
+    keeps the existing success response with no redirect.
+* `src/app/api/public/approve/[token]/route.ts` — passes
+  `whatsappRedirectUrl` through to the JSON response.
+* `src/app/approve/[token]/ApprovalForm.tsx` — when the response includes
+  `whatsappRedirectUrl`, the success view sets `window.location.href = url`
+  right after rendering success.
+
+### Message format
+
+```
+הי ליאור
+הצעת מחיר אושרה ✅
+
+לקוח: {customerName}
+טלפון: {customerPhone}
+תאריך האירוע: {eventDate}
+שעה: {eventTime}
+```
+
+Each missing field falls back to `—`.
+
+### Constraints honored
+
+* Approval still succeeds if WhatsApp URL build throws — wrapped in try/catch
+  with a safe `console.error("[approval] build whatsapp redirect failed", error)`.
+* Calendar creation runs before WhatsApp URL build and is not blocked by it.
+* No external libraries; phone normalization reuses the existing util.
+* Note: `CLAUDE.md` and `docs/CODEBASE_MAP.md` referenced in the task brief
+  do not exist in this repo — work proceeded with `docs/RUNNING_SUMMARY.md`
+  and the existing source as the source of truth.
+
+### Verification
+
+* `npm test` — 6 suites / 59 tests pass (1 new test added in delivery suite).
+* `npm run build` — succeeds. Pre-existing `Dynamic server usage` notices on
+  unrelated `/api/reports/*` routes are unchanged.
+
+---

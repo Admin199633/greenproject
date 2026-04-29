@@ -198,6 +198,7 @@ export default function ApprovalForm({
       const data = (await res.json().catch(() => ({}))) as {
         error?: string;
         calendarEventCreated?: boolean;
+        whatsappRedirectUrl?: string | null;
       };
 
       if (!res.ok) {
@@ -208,6 +209,10 @@ export default function ApprovalForm({
 
       setCalendarEventCreated(Boolean(data.calendarEventCreated));
       setState("success");
+
+      if (data.whatsappRedirectUrl) {
+        window.location.href = data.whatsappRedirectUrl;
+      }
     } catch {
       setState("error");
       setError("אירעה שגיאת רשת. יש לנסות שוב.");

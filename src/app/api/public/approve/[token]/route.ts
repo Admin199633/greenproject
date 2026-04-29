@@ -66,6 +66,7 @@ export async function POST(req: Request, { params }: RouteCtx) {
       approvedAt: result.approvedAt,
       approvedByName: result.approvedByName,
       calendarEventCreated: result.calendarEventCreated,
+      whatsappRedirectUrl: result.whatsappRedirectUrl,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "";

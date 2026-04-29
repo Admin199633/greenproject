@@ -295,6 +295,28 @@ export function buildApprovedQuoteOwnerWhatsappMessage(params: {
   return lines.join("\n");
 }
 
+export function buildOwnerApprovalRedirectWhatsappMessage(params: {
+  customerName: string | null | undefined;
+  customerPhone: string | null | undefined;
+  eventDate: string | null | undefined;
+  eventTime: string | null | undefined;
+}) {
+  const dash = "—";
+  const customerName = params.customerName?.trim() || dash;
+  const customerPhone = params.customerPhone?.trim() || dash;
+  const eventDate = params.eventDate?.trim() || dash;
+  const eventTime = params.eventTime?.trim() || dash;
+  return [
+    "הי ליאור",
+    "הצעת מחיר אושרה ✅",
+    "",
+    `לקוח: ${customerName}`,
+    `טלפון: ${customerPhone}`,
+    `תאריך האירוע: ${eventDate}`,
+    `שעה: ${eventTime}`,
+  ].join("\n");
+}
+
 export function buildWhatsappShareUrl(phone: string, message: string) {
   const normalizedPhone = phone.trim() ? normalizeWhatsappPhone(phone) : "";
   const phonePath = normalizedPhone ? `/${normalizedPhone}` : "/";

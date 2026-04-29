@@ -9,7 +9,11 @@ import {
 } from "@/lib/documents/approval";
 import type { SaveDraftInput } from "@/lib/validations/document";
 import { createCalendarEventForBusiness } from "@/services/google-calendar.service";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatDate, formatEventTime } from "@/lib/utils";
+import {
+  buildOwnerApprovalRedirectWhatsappMessage,
+  buildWhatsappShareUrl,
+} from "@/lib/documents/delivery";
 
 type Tx = Prisma.TransactionClient;
 
@@ -1243,7 +1247,60 @@ export async function recordQuoteApproval(
     console.error("[calendar] create event failed", error);
   }
 
-  return { ...updated, calendarEventCreated };
+  // Build a wa.me redirect URL that opens a chat with the business owner with
+  // a pre-filled Hebrew approval message. Returns null if the business has no
+  // phone configured — the route then keeps the existing success response.
+  const whatsappRedirectUrl = await buildOwnerApprovalWhatsappRedirectUrl(
+    updated.id
+  );
+
+  return { ...updated, calendarEventCreated, whatsappRedirectUrl };
+}
+
+async function buildOwnerApprovalWhatsappRedirectUrl(
+  documentId: string
+): Promise<string | null> {
+  try {
+    const doc = await db.document.findUnique({
+      where: { id: documentId },
+      select: {
+        customerName: true,
+        eventDate: true,
+        eventTime: true,
+        business: { select: { phone: true } },
+        customer: {
+          select: {
+            fullName: true,
+            companyName: true,
+            phone: true,
+          },
+        },
+      },
+    });
+
+    const businessPhone = doc?.business.phone?.trim();
+    if (!doc || !businessPhone) return null;
+
+    const customerName =
+      doc.customerName?.trim() ||
+      doc.customer.companyName?.trim() ||
+      doc.customer.fullName?.trim() ||
+      "";
+    const customerPhone = doc.customer.phone?.trim() ?? null;
+    const eventDate = doc.eventDate ? formatDate(doc.eventDate) : null;
+    const eventTime = formatEventTime(doc.eventTime) || doc.eventTime || null;
+
+    const message = buildOwnerApprovalRedirectWhatsappMessage({
+      customerName,
+      customerPhone,
+      eventDate,
+      eventTime,
+    });
+    return buildWhatsappShareUrl(businessPhone, message);
+  } catch (error) {
+    console.error("[approval] build whatsapp redirect failed", error);
+    return null;
+  }
 }
 
 export { buildApprovalUrl };

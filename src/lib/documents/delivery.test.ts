@@ -54,6 +54,42 @@ describe("document delivery helpers", () => {
     expect(url).toBe("https://wa.me/?text=hello%20world");
   });
 
+  it("builds the owner approval redirect message with em-dash fallbacks", async () => {
+    const { buildOwnerApprovalRedirectWhatsappMessage } = await import(
+      "@/lib/documents/delivery"
+    );
+
+    const message = buildOwnerApprovalRedirectWhatsappMessage({
+      customerName: "דנה",
+      customerPhone: "050-1234567",
+      eventDate: "12.05.2026",
+      eventTime: "10:30",
+    });
+
+    expect(message).toBe(
+      [
+        "הי ליאור",
+        "הצעת מחיר אושרה ✅",
+        "",
+        "לקוח: דנה",
+        "טלפון: 050-1234567",
+        "תאריך האירוע: 12.05.2026",
+        "שעה: 10:30",
+      ].join("\n")
+    );
+
+    const fallback = buildOwnerApprovalRedirectWhatsappMessage({
+      customerName: "",
+      customerPhone: null,
+      eventDate: undefined,
+      eventTime: "  ",
+    });
+    expect(fallback).toContain("לקוח: —");
+    expect(fallback).toContain("טלפון: —");
+    expect(fallback).toContain("תאריך האירוע: —");
+    expect(fallback).toContain("שעה: —");
+  });
+
   it("renders a premium html email with a public pdf cta", async () => {
     const { buildDocumentEmailHtml } = await import("@/lib/documents/delivery");
     const html = buildDocumentEmailHtml({
