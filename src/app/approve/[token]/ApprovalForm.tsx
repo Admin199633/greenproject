@@ -25,87 +25,6 @@ interface ApprovalFormProps {
   approvalLink?: string;
 }
 
-function pad(value: number) {
-  return value.toString().padStart(2, "0");
-}
-
-function formatGoogleCalendarDateTime(date: Date) {
-  return (
-    `${date.getUTCFullYear()}` +
-    `${pad(date.getUTCMonth() + 1)}` +
-    `${pad(date.getUTCDate())}` +
-    `T${pad(date.getUTCHours())}` +
-    `${pad(date.getUTCMinutes())}` +
-    `${pad(date.getUTCSeconds())}`
-  );
-}
-
-function formatGoogleCalendarDate(date: Date) {
-  return (
-    `${date.getUTCFullYear()}` +
-    `${pad(date.getUTCMonth() + 1)}` +
-    `${pad(date.getUTCDate())}`
-  );
-}
-
-function buildGoogleCalendarUrl(params: {
-  title: string;
-  details: string;
-  location?: string | null;
-  eventDateIso: string;
-  eventTime?: string | null;
-}) {
-  const eventStartUtc = new Date(params.eventDateIso);
-  if (Number.isNaN(eventStartUtc.getTime())) {
-    return null;
-  }
-
-  const url = new URL("https://calendar.google.com/calendar/render");
-  url.searchParams.set("action", "TEMPLATE");
-  url.searchParams.set("text", params.title);
-  url.searchParams.set("details", params.details);
-  if (params.location?.trim()) {
-    url.searchParams.set("location", params.location.trim());
-  }
-  url.searchParams.set("ctz", "Asia/Jerusalem");
-
-  const timeMatch = params.eventTime?.match(/^(\d{2}):(\d{2})$/);
-  if (timeMatch) {
-    const hour = Number(timeMatch[1]);
-    const minute = Number(timeMatch[2]);
-    const start = new Date(
-      Date.UTC(
-        eventStartUtc.getUTCFullYear(),
-        eventStartUtc.getUTCMonth(),
-        eventStartUtc.getUTCDate(),
-        hour,
-        minute,
-        0
-      )
-    );
-    const end = new Date(start.getTime() + 3 * 60 * 60 * 1000);
-    url.searchParams.set(
-      "dates",
-      `${formatGoogleCalendarDateTime(start)}/${formatGoogleCalendarDateTime(end)}`
-    );
-  } else {
-    const start = new Date(
-      Date.UTC(
-        eventStartUtc.getUTCFullYear(),
-        eventStartUtc.getUTCMonth(),
-        eventStartUtc.getUTCDate()
-      )
-    );
-    const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
-    url.searchParams.set(
-      "dates",
-      `${formatGoogleCalendarDate(start)}/${formatGoogleCalendarDate(end)}`
-    );
-  }
-
-  return url.toString();
-}
-
 type FormState = "idle" | "loading" | "success" | "error";
 
 export default function ApprovalForm({
@@ -114,10 +33,8 @@ export default function ApprovalForm({
   termsText,
   businessPhone,
   customerPhone,
-  eventDateIso,
   eventDateFormatted,
   eventTime,
-  eventLocation,
   quoteNumber,
   totalFormatted,
   approvalLink,
@@ -131,6 +48,7 @@ export default function ApprovalForm({
   const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
   const [state, setState] = useState<FormState>("idle");
   const [error, setError] = useState("");
+  const [calendarEventCreated, setCalendarEventCreated] = useState(false);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -277,7 +195,10 @@ export default function ApprovalForm({
         }
       );
 
-      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        calendarEventCreated?: boolean;
+      };
 
       if (!res.ok) {
         setState("error");
@@ -285,6 +206,7 @@ export default function ApprovalForm({
         return;
       }
 
+      setCalendarEventCreated(Boolean(data.calendarEventCreated));
       setState("success");
     } catch {
       setState("error");
@@ -307,26 +229,8 @@ export default function ApprovalForm({
       businessPhone?.trim() ?? "",
       ownerMessage
     );
-    const calendarUrl = eventDateIso
-      ? buildGoogleCalendarUrl({
-          title: `צילום אירוע - ${customerName}`,
-          details: [
-            `לקוח: ${customerName}`,
-            customerPhone?.trim() ? `טלפון: ${customerPhone.trim()}` : null,
-            quoteNumber ? `מספר הצעה: ${quoteNumber}` : null,
-            `אישור הצעה: ${effectiveApprovalLink}`,
-          ]
-            .filter(Boolean)
-            .join("\n"),
-          location: eventLocation,
-          eventDateIso,
-          eventTime,
-        })
-      : null;
 
     function handleBusinessWhatsapp() {
-      console.log("[whatsapp] message", ownerMessage);
-      console.log("[whatsapp] url", businessShareUrl);
       window.open(businessShareUrl, "_blank", "noopener,noreferrer");
     }
 
@@ -339,8 +243,14 @@ export default function ApprovalForm({
           הצעת המחיר אושרה בהצלחה
         </p>
         <p className="mt-2 text-sm leading-7 text-slate-600">
-          התאריך נשמר עבורך. אפשר להמשיך לפעולות הבאות:
+          התאריך נשמר עבורך.
         </p>
+
+        {calendarEventCreated && (
+          <p className="mt-4 inline-flex items-center justify-center rounded-2xl border border-emerald-200 bg-white/80 px-4 py-2 text-sm font-medium text-emerald-700">
+            האירוע נוסף ליומן של פוטופ
+          </p>
+        )}
 
         <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:justify-center">
           <button
@@ -351,20 +261,6 @@ export default function ApprovalForm({
           >
             שלח לי בוואטסאפ
           </button>
-          {calendarUrl ? (
-            <a
-              href={calendarUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-2xl border border-slate-300 bg-white px-5 text-sm font-semibold text-slate-800 shadow-[0_12px_30px_rgba(15,23,42,0.08)] transition-colors hover:bg-slate-50"
-            >
-              שמור ביומן Google
-            </a>
-          ) : (
-            <span className="inline-flex min-h-[48px] items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white/60 px-5 text-xs leading-6 text-slate-500">
-              שמירה ביומן זמינה כשתאריך האירוע מוגדר בהצעה
-            </span>
-          )}
         </div>
         {!businessPhone?.trim() && (
           <p className="mt-3 text-xs leading-6 text-slate-400">

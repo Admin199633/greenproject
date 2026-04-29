@@ -1274,3 +1274,98 @@ into `ApprovalForm`:
      quote; the browser console should print `[whatsapp] message` containing
      the emoji template, and the URL should target wa.me with that emoji
      payload.
+
+## Google Calendar integration (owner-side, automatic on approval)
+
+When a quote is approved by a customer, an event is now created automatically
+in the business owner's Google Calendar. The customer never sees Google's auth
+flow — the connection is owner-only and lives in business settings.
+
+### What was added
+
+- Owner-side OAuth: connect / disconnect / status routes under
+  `/green/api/integrations/google-calendar/*`.
+- `BusinessGoogleCalendarConnection` model holding the OAuth tokens. Tokens are
+  stored AES-256-GCM encrypted (`src/lib/encryption.ts`) using `ENCRYPTION_KEY`.
+- HMAC-signed OAuth state (`src/lib/oauth-state.ts`) bound to the businessId so
+  the callback can run without an authenticated session.
+- `Document.googleCalendarEventId` — set after the event is created. Used to
+  make the calendar-event creation idempotent across re-approvals or repeated
+  link visits.
+- `tryCreateOwnerCalendarEvent` in `src/services/document.service.ts` runs
+  after approval succeeds. Approval succeeds whether or not calendar event
+  creation works; failures are logged with `console.error("[calendar] create event failed", error)`.
+- The raw approval token is held in memory only (never read back from the DB)
+  and is used to build the approval URL embedded in the calendar event
+  description.
+- Settings UI: `GoogleCalendarSection` on `/green/settings` shows connected /
+  not connected, runs the OAuth flow, and supports disconnect. Layout is
+  responsive on mobile (no horizontal overflow).
+- The previous customer-side `שמור ביומן Google` button on the post-approval
+  success screen was removed — it was misleading because the calendar
+  integration is owner-side. The success screen now shows
+  `האירוע נוסף ליומן של פוטופ` when `calendarEventCreated` is true.
+
+### Calendar event content
+
+- Title: `צילום אירוע - {customerName}`
+- Start: `eventDate` + `eventTime`, time zone `Asia/Jerusalem`. If `eventTime`
+  is not set, calendar creation is skipped (with a safe log).
+- End: `eventDate` + `eventTime` + `eventHours` if set, otherwise +3 hours.
+- Location: `eventLocation` if set.
+- Description includes customer name, phone, quote number, total, and the
+  approval link (built in memory from the raw token).
+
+### Required env vars
+
+| Var                   | Purpose                                                 |
+| --------------------- | ------------------------------------------------------- |
+| `GOOGLE_CLIENT_ID`    | Google OAuth client (Web application)                   |
+| `GOOGLE_CLIENT_SECRET`| Google OAuth client secret                              |
+| `GOOGLE_REDIRECT_URI` | Must match `/green/api/integrations/google-calendar/callback` |
+| `ENCRYPTION_KEY`      | AES-256-GCM key for at-rest token encryption (≥16 chars)|
+
+These are documented in `.env.example`. Production: configure them in Vercel.
+Generate `ENCRYPTION_KEY` with `openssl rand -base64 32`.
+
+### DB sync
+
+After pulling these changes, run:
+
+```
+npx prisma db push
+```
+
+This syncs the new `BusinessGoogleCalendarConnection` model and the new
+`Document.googleCalendarEventId` column.
+
+### Google Cloud Console setup
+
+1. Create a project and enable the **Google Calendar API**.
+2. OAuth consent screen: external, add your test users while in testing mode.
+3. Credentials → Create OAuth client → **Web application**.
+4. Authorized redirect URIs:
+   - Local: `http://localhost:3000/green/api/integrations/google-calendar/callback`
+   - Production: `https://<your-domain>/green/api/integrations/google-calendar/callback`
+5. Required scopes (configured in `src/services/google-calendar.service.ts`):
+   - `https://www.googleapis.com/auth/calendar.events`
+   - `openid`
+   - `email`
+
+### Manual test checklist
+
+1. Add `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`,
+   `ENCRYPTION_KEY` in Vercel (or local `.env.local`).
+2. `npx prisma db push` against the target database.
+3. Open `/green/settings` → connect Google Calendar → consent → confirm the
+   section shows `מחובר ({email})`.
+4. Issue a quote with `eventDate` and `eventTime` set.
+5. Open the approval link in incognito → approve.
+6. Verify a new event appears on the business owner's calendar with the
+   correct title, time, location, and description (incl. approval link).
+7. Re-open the same approval link or re-approve via a re-issued token: confirm
+   no duplicate calendar event is created (idempotency via
+   `Document.googleCalendarEventId`).
+8. Disconnect from settings → approve another quote → confirm no calendar
+   event is created and the success screen does not show the calendar
+   confirmation message.

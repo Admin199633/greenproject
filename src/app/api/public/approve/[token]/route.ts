@@ -65,6 +65,7 @@ export async function POST(req: Request, { params }: RouteCtx) {
     return NextResponse.json({
       approvedAt: result.approvedAt,
       approvedByName: result.approvedByName,
+      calendarEventCreated: result.calendarEventCreated,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "";

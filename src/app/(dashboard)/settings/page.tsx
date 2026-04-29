@@ -1,17 +1,28 @@
 import { requireBusinessId } from "@/services/auth.service";
 import { getBusiness } from "@/services/business.service";
 import { listSavedItems } from "@/services/savedItem.service";
+import {
+  getConnectionStatus,
+  getGoogleOauthEnv,
+} from "@/services/google-calendar.service";
 import { perf } from "@/lib/perf";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import BusinessSettingsForm from "./BusinessSettingsForm";
 import SavedItemsManager from "./SavedItemsManager";
+import GoogleCalendarSection from "./GoogleCalendarSection";
 
 export default async function SettingsPage() {
   const t0 = Date.now();
   const { businessId } = await requireBusinessId();
 
-  const [business, savedItems] = await perf("settings load total", () =>
-    Promise.all([getBusiness(businessId), listSavedItems(businessId)])
+  const [business, savedItems, calendarStatus] = await perf(
+    "settings load total",
+    () =>
+      Promise.all([
+        getBusiness(businessId),
+        listSavedItems(businessId),
+        getConnectionStatus(businessId),
+      ])
   );
 
   if (!business) {
@@ -52,6 +63,21 @@ export default async function SettingsPage() {
               invoiceReceiptNumberPrefix: business.invoiceReceiptNumberPrefix ?? "INVR-",
               sendIssueNotificationEmail: business.sendIssueNotificationEmail ?? false,
               quoteTermsText: business.quoteTermsText,
+            }}
+          />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>חיבור ליומן Google</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <GoogleCalendarSection
+            initial={{
+              connected: calendarStatus.connected,
+              googleEmail: calendarStatus.googleEmail,
+              configured: Boolean(getGoogleOauthEnv()),
             }}
           />
         </CardContent>

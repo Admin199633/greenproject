@@ -66,6 +66,27 @@ model Business {
   payments   Payment[]
   counters   DocumentCounter[]
   savedItems SavedItem[]
+  googleCalendarConnection BusinessGoogleCalendarConnection?
+}
+
+// ─── Google Calendar connection ──────────────────────────────────────────────
+
+/// Owner-side Google Calendar OAuth tokens for a business. Tokens are stored
+/// AES-256-GCM encrypted using ENCRYPTION_KEY; raw tokens never hit the wire
+/// outside of the OAuth callback / refresh paths.
+model BusinessGoogleCalendarConnection {
+  id            String   @id @default(cuid())
+  businessId    String   @unique
+  business      Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  googleEmail   String?
+  /// AES-256-GCM ciphertext of the access token (iv:authTag:ciphertext, hex)
+  accessToken   String   @db.Text
+  /// AES-256-GCM ciphertext of the refresh token; null when Google did not return one
+  refreshToken  String?  @db.Text
+  tokenExpiry   DateTime?
+  calendarId    String   @default("primary")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
 
 // ─── SavedItem ────────────────────────────────────────────────────────────────
@@ -204,6 +225,10 @@ model Document {
   approvalUserAgent         String?
   approvalSignatureDataUrl  String?   @db.Text
   approvalTermsAccepted     Boolean   @default(false)
+
+  /// Set when an event was successfully created in the owner's Google Calendar.
+  /// Used to make calendar-event creation idempotent across re-approvals.
+  googleCalendarEventId     String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

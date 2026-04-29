@@ -3,10 +3,13 @@ import { DocumentStatus, DocumentType, Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { perf } from "@/lib/perf";
 import {
+  buildApprovalUrl,
   generateApprovalToken,
   hashApprovalToken,
 } from "@/lib/documents/approval";
 import type { SaveDraftInput } from "@/lib/validations/document";
+import { createCalendarEventForBusiness } from "@/services/google-calendar.service";
+import { formatCurrency } from "@/lib/utils";
 
 type Tx = Prisma.TransactionClient;
 
@@ -1022,6 +1025,155 @@ export interface RecordApprovalInput {
   approvalSignatureDataUrl?: string | null;
 }
 
+function pad2(value: number) {
+  return value.toString().padStart(2, "0");
+}
+
+function buildCalendarEventTimes(params: {
+  eventDate: Date;
+  eventTime: string | null;
+  eventHours: Prisma.Decimal | null;
+}): { startISO: string; endISO: string } | null {
+  const date = params.eventDate;
+  if (!date || Number.isNaN(date.getTime())) return null;
+
+  const year = date.getUTCFullYear();
+  const month = date.getUTCMonth();
+  const day = date.getUTCDate();
+
+  let hours = 9;
+  let minutes = 0;
+  const timeMatch = params.eventTime?.trim().match(/^(\d{1,2}):(\d{2})$/);
+  if (timeMatch) {
+    const parsedHours = Number(timeMatch[1]);
+    const parsedMinutes = Number(timeMatch[2]);
+    if (
+      Number.isInteger(parsedHours) &&
+      parsedHours >= 0 &&
+      parsedHours <= 23 &&
+      Number.isInteger(parsedMinutes) &&
+      parsedMinutes >= 0 &&
+      parsedMinutes <= 59
+    ) {
+      hours = parsedHours;
+      minutes = parsedMinutes;
+    }
+  }
+
+  const startMs = Date.UTC(year, month, day, hours, minutes, 0);
+  const durationHours =
+    params.eventHours && Number(params.eventHours) > 0
+      ? Number(params.eventHours)
+      : 3;
+  const endMs = startMs + Math.round(durationHours * 3600 * 1000);
+
+  function format(ms: number) {
+    const d = new Date(ms);
+    return (
+      `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}` +
+      `T${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}:00`
+    );
+  }
+
+  return { startISO: format(startMs), endISO: format(endMs) };
+}
+
+async function tryCreateOwnerCalendarEvent(
+  documentId: string,
+  rawToken: string | null
+): Promise<boolean> {
+  const doc = await db.document.findUnique({
+    where: { id: documentId },
+    select: {
+      id: true,
+      businessId: true,
+      number: true,
+      currency: true,
+      totalAmount: true,
+      eventDate: true,
+      eventTime: true,
+      eventHours: true,
+      eventLocation: true,
+      customerName: true,
+      googleCalendarEventId: true,
+      customer: {
+        select: {
+          fullName: true,
+          companyName: true,
+          phone: true,
+        },
+      },
+    },
+  });
+
+  if (!doc) return false;
+  if (doc.googleCalendarEventId) return false;
+  if (!doc.eventDate) return false;
+
+  // No event time configured — skip calendar creation rather than guess a time.
+  if (!doc.eventTime?.trim()) {
+    console.error(
+      "[calendar] create event skipped — no eventTime on document",
+      doc.id
+    );
+    return false;
+  }
+
+  const times = buildCalendarEventTimes({
+    eventDate: doc.eventDate,
+    eventTime: doc.eventTime ?? null,
+    eventHours: doc.eventHours ?? null,
+  });
+  if (!times) return false;
+
+  const customerName =
+    doc.customerName?.trim() ||
+    doc.customer.companyName?.trim() ||
+    doc.customer.fullName?.trim() ||
+    "לקוח/ה";
+  const customerPhone = doc.customer.phone?.trim() ?? null;
+  const quoteNumber = doc.number ?? "";
+  const totalFormatted = formatCurrency(doc.totalAmount.toString());
+  const approvalLink = rawToken ? buildApprovalUrl(rawToken) : "";
+
+  const summary = `צילום אירוע - ${customerName}`;
+  const descriptionLines: Array<string | null> = [
+    "הצעת מחיר אושרה ✅",
+    "",
+    `לקוח: ${customerName}`,
+    customerPhone ? `טלפון: ${customerPhone}` : null,
+    quoteNumber ? `מספר הצעה: ${quoteNumber}` : null,
+    `סה"כ: ${totalFormatted}`,
+  ];
+  if (approvalLink) {
+    descriptionLines.push("", "קישור להצעה:", approvalLink);
+  }
+  const description = descriptionLines
+    .filter((line): line is string => line !== null)
+    .join("\n");
+
+  try {
+    const result = await createCalendarEventForBusiness(doc.businessId, {
+      summary,
+      description,
+      location: doc.eventLocation?.trim() || null,
+      startISO: times.startISO,
+      endISO: times.endISO,
+      timeZone: "Asia/Jerusalem",
+    });
+    if (!result) return false;
+
+    await db.document.update({
+      where: { id: doc.id },
+      data: { googleCalendarEventId: result.eventId },
+    });
+    return true;
+  } catch (error) {
+    console.error("[calendar] create event failed", error);
+    return false;
+  }
+}
+
 export async function recordQuoteApproval(
   rawToken: string,
   input: RecordApprovalInput
@@ -1038,7 +1190,7 @@ export async function recordQuoteApproval(
     throw new Error("APPROVAL:Approver name is required");
   }
 
-  return db.$transaction(async (tx) => {
+  const updated = await db.$transaction(async (tx) => {
     const doc = await tx.document.findFirst({
       where: {
         approvalTokenHash: tokenHash,
@@ -1080,4 +1232,18 @@ export async function recordQuoteApproval(
       },
     });
   });
+
+  // After-the-fact: try to create an owner-side Google Calendar event.
+  // Approval succeeds whether or not this works. The raw token is held in
+  // memory only; we never read it back from the DB (we only store its hash).
+  let calendarEventCreated = false;
+  try {
+    calendarEventCreated = await tryCreateOwnerCalendarEvent(updated.id, trimmed);
+  } catch (error) {
+    console.error("[calendar] create event failed", error);
+  }
+
+  return { ...updated, calendarEventCreated };
 }
+
+export { buildApprovalUrl };
