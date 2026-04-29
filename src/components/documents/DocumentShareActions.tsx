@@ -5,25 +5,48 @@ import { useToast } from "@/components/ui/Toast";
 import { API_BASE } from "@/lib/api-base";
 import {
   buildAbsoluteUrl,
+  buildApprovalShareMessage,
   buildPublicDocumentPdfPath,
+  buildWhatsappShareUrl,
 } from "@/lib/documents/delivery";
 
 interface Props {
   documentId: string;
+  customerName: string;
+  customerPhone: string | null;
   publicPdfToken: string;
   approvalUrl?: string | null;
   canCopyApprovalLink?: boolean;
 }
 
+async function copyTextToClipboard(text: string) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "absolute";
+  textarea.style.left = "-9999px";
+  document.body.appendChild(textarea);
+  textarea.select();
+  document.execCommand("copy");
+  document.body.removeChild(textarea);
+}
+
 export default function DocumentShareActions({
   documentId,
+  customerName,
+  customerPhone,
   publicPdfToken,
   approvalUrl,
   canCopyApprovalLink = false,
 }: Props) {
   const { toast } = useToast();
   const [approvalLink, setApprovalLink] = useState<string | null>(approvalUrl ?? null);
-  const [isCopyingApprovalLink, setIsCopyingApprovalLink] = useState(false);
+  const [isSharingApprovalLink, setIsSharingApprovalLink] = useState(false);
 
   async function getApprovalUrl() {
     if (approvalLink) {
@@ -46,33 +69,32 @@ export default function DocumentShareActions({
     return data.approvalUrl;
   }
 
-  async function handleCopyApprovalLink() {
-    setIsCopyingApprovalLink(true);
+  async function handleSendApprovalLink() {
+    setIsSharingApprovalLink(true);
 
     try {
       const url = await getApprovalUrl();
+      const message = buildApprovalShareMessage({
+        customerName,
+        approvalUrl: url,
+      });
 
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(url);
-      } else {
-        const textarea = document.createElement("textarea");
-        textarea.value = url;
-        textarea.setAttribute("readonly", "");
-        textarea.style.position = "absolute";
-        textarea.style.left = "-9999px";
-        document.body.appendChild(textarea);
-        textarea.select();
-        document.execCommand("copy");
-        document.body.removeChild(textarea);
+      const phone = customerPhone?.trim() ?? "";
+
+      if (!phone) {
+        await copyTextToClipboard(url);
+        toast("אין מספר טלפון ללקוח, הקישור הועתק");
+        return;
       }
 
-      toast("קישור הועתק");
+      const shareUrl = buildWhatsappShareUrl(phone, message);
+      window.open(shareUrl, "_blank", "noopener,noreferrer");
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "לא ניתן להעתיק את קישור האישור";
+        error instanceof Error ? error.message : "לא ניתן לשלוח את קישור האישור";
       toast(message, "error");
     } finally {
-      setIsCopyingApprovalLink(false);
+      setIsSharingApprovalLink(false);
     }
   }
 
@@ -82,12 +104,12 @@ export default function DocumentShareActions({
         <button
           type="button"
           onClick={() => {
-            void handleCopyApprovalLink();
+            void handleSendApprovalLink();
           }}
-          disabled={isCopyingApprovalLink}
+          disabled={isSharingApprovalLink}
           className="inline-flex min-h-[44px] w-full items-center justify-center rounded-md bg-brand-600 px-4 text-sm font-medium text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-8 sm:w-auto sm:px-3"
         >
-          {isCopyingApprovalLink ? "מעתיק..." : "העתק קישור אישור"}
+          {isSharingApprovalLink ? "שולח..." : "שלח קישור אישור"}
         </button>
       )}
       <a

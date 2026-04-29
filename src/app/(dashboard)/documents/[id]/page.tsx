@@ -109,6 +109,8 @@ export default async function DocumentDetailPage({ params }: PageProps) {
               {canDownloadPdf && publicPdfToken && (
                 <DocumentShareActions
                   documentId={doc.id}
+                  customerName={doc.customerName ?? getDisplayName(doc.customer)}
+                  customerPhone={doc.customer.phone}
                   publicPdfToken={publicPdfToken}
                   canCopyApprovalLink={showQuoteApproval && !doc.approvedAt}
                 />

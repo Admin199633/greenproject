@@ -5,6 +5,42 @@ Read this before starting any task.
 
 ---
 
+## [2026-04-29] Document Detail — Approval Action Becomes WhatsApp Send
+
+FILES:
+- src/lib/documents/delivery.ts (new `buildApprovalShareMessage` helper)
+- src/components/documents/DocumentShareActions.tsx
+- src/app/(dashboard)/documents/[id]/page.tsx (passes `customerName` + `customerPhone` again)
+
+DONE:
+- The primary action on the document detail page (first in the action order) is now **"שלח קישור אישור"** instead of "העתק קישור אישור". Clicking it:
+  1. Resolves the approval URL via the existing `POST /api/documents/[id]/approval-link` route (cached in component state after the first call).
+  2. Builds the message:
+     ```
+     הי {customerName}
+     מצורפת הצעת המחיר לאישור:
+     {approvalUrl}
+
+     לאישור ההצעה יש ללחוץ על הקישור.
+     ```
+  3. Opens `https://wa.me/{normalizedPhone}?text=...` in a new tab via `window.open(url, "_blank", "noopener,noreferrer")`.
+- **Phone normalization** uses the existing `normalizeWhatsappPhone` (in `delivery.ts`) which already implements the spec: strip non-digits, drop leading `+`, treat `00…` as international, and rewrite a leading `0` to `972` (so `0501234567` → `972501234567`). Numbers already starting with `972` are passed through unchanged. The URL itself is constructed by the existing `buildWhatsappShareUrl` helper.
+- **Fallback when the customer has no phone**: copies the approval URL to the clipboard (using `navigator.clipboard.writeText`, with a `textarea` + `execCommand('copy')` fallback for older browsers) and shows the toast `"אין מספר טלפון ללקוח, הקישור הועתק"`. The copy-only behavior is no longer the primary path; it only runs as the explicit fallback.
+- New helper **`buildApprovalShareMessage({ customerName, approvalUrl })`** added to `src/lib/documents/delivery.ts`. It returns the exact 4-line format above, with the `הי {name}` greeting falling back to a bare `היי` if the name is empty/whitespace.
+- `DocumentShareActions` props updated to `{ documentId, customerName, customerPhone, publicPdfToken, approvalUrl?, canCopyApprovalLink? }`. The page passes `doc.customerName ?? getDisplayName(doc.customer)` and `doc.customer.phone`.
+
+NOT CHANGED:
+- The public approval flow under `src/app/approve/[token]/...` — still serves the same approval page, signature flow, and post-approval redirect. The button only links the customer to that page.
+- The post-approval owner redirect (`buildOwnerApprovalRedirectWhatsappMessage`, `buildApprovedQuoteOwnerWhatsappMessage`) and the approval-time owner WhatsApp open inside `ApprovalForm` are untouched.
+- `buildApprovalWhatsappMessage` (the old 👋/📸/✅/🙂 variant) is preserved alongside the new helper because the existing test in `delivery.test.ts` and `email.service.ts` still rely on its exact string. The document detail action does not call it anymore.
+- The PDF download button styling/order (action #2 in the bar) is unchanged.
+
+VERIFICATION:
+- `npm run build` — clean.
+- `npm test` — 6/6 suites, 59/59 tests pass.
+
+---
+
 ## [2026-04-29] QUOTE Form Fields — dueDate Removed, Event Fields Required
 
 FILES:

@@ -249,6 +249,19 @@ ${params.approvalUrl}
 לכל שאלה אני כאן 🙂`;
 }
 
+export function buildApprovalShareMessage(params: {
+  customerName: string;
+  approvalUrl: string;
+}) {
+  const name = params.customerName.trim();
+  const greeting = name ? `הי ${name}` : "היי";
+  return `${greeting}
+מצורפת הצעת המחיר לאישור:
+${params.approvalUrl}
+
+לאישור ההצעה יש ללחוץ על הקישור.`;
+}
+
 export function buildWhatsappMessage(params: {
   customerName: string;
   type: string;
