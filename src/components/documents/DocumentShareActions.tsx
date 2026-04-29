@@ -128,6 +128,7 @@ export default function DocumentShareActions({
         encodedMessageHasReplacement: encodedMessage.includes("\uFFFD"),
         whatsappUrlHasReplacement: shareUrl.includes("\uFFFD"),
       });
+      console.log("FINAL_WHATSAPP_URL", shareUrl);
       window.open(shareUrl, "_blank", "noopener,noreferrer");
     } catch (error) {
       const message =

@@ -31,7 +31,9 @@ describe("document delivery helpers", () => {
     const { buildWhatsappShareUrl } = await import("@/lib/documents/delivery");
     const url = buildWhatsappShareUrl("050-1234567", "hello world");
 
-    expect(url).toBe("https://wa.me/972501234567?text=hello%20world");
+    expect(url).toBe(
+      "https://api.whatsapp.com/send?phone=972501234567&text=hello%20world"
+    );
   });
 
   it("builds an approval whatsapp message", async () => {
@@ -77,7 +79,9 @@ https://app.example.com/green/a/token-1
     const { buildWhatsappShareUrl } = await import("@/lib/documents/delivery");
     const url = buildWhatsappShareUrl("", "hello world");
 
-    expect(url).toBe("https://wa.me/?text=hello%20world");
+    expect(url).toBe(
+      "https://api.whatsapp.com/send?phone=&text=hello%20world"
+    );
   });
 
   it("renders a custom approval whatsapp template with safe fallbacks", async () => {
@@ -129,8 +133,12 @@ https://app.example.com/green/a/token-1
 לכל שאלה אני כאן 🙂`
     );
 
-    expect(safeUrl).toContain("https://wa.me/972501234567?text=");
+    expect(safeUrl).toContain(
+      "https://api.whatsapp.com/send?phone=972501234567&text="
+    );
     expect(safeUrl).not.toContain("\uFFFD");
+    expect(safeUrl).not.toContain("+");
+    expect(safeUrl).not.toContain('text="');
     return;
 
     const url = buildWhatsappShareUrl(
@@ -147,8 +155,12 @@ https://app.example.com/green/a/token-1
 לכל שאלה אני כאן `
     );
 
-    expect(url).toContain("https://wa.me/972501234567?text=");
+    expect(url).toContain(
+      "https://api.whatsapp.com/send?phone=972501234567&text="
+    );
     expect(url).not.toContain("\uFFFD");
+    expect(url).not.toContain("+");
+    expect(url).not.toContain('text="');
   });
 
   it("builds the owner approval redirect message with em-dash fallbacks", async () => {

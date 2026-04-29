@@ -410,9 +410,8 @@ export function buildOwnerApprovalRedirectWhatsappMessage(params: {
 
 export function buildWhatsappShareUrl(phone: string, message: string) {
   const normalizedPhone = phone.trim() ? normalizeWhatsappPhone(phone) : "";
-  const phonePath = normalizedPhone ? `/${normalizedPhone}` : "/";
   const encoded = encodeURIComponent(message);
-  return `https://wa.me${phonePath}?text=${encoded}`;
+  return `https://api.whatsapp.com/send?phone=${normalizedPhone}&text=${encoded}`;
 }
 
 export function formatDocumentTotal(amount: string, currency: string) {
