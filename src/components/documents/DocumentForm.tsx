@@ -159,7 +159,8 @@ export default function DocumentForm({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const showPhotographyFields = businessType === "photography" && type === "QUOTE";
+  const isQuote = type === "QUOTE";
+  const showQuoteEventFields = isQuote;
   const showReceiptFields = type === "RECEIPT" || type === "INVOICE_RECEIPT";
   const showReferenceField =
     receiptPaymentMethod !== "" &&
@@ -232,6 +233,21 @@ export default function DocumentForm({
       return;
     }
 
+    if (isQuote) {
+      if (!eventDate) {
+        setError("תאריך האירוע הוא שדה חובה");
+        return;
+      }
+      if (!eventLocation.trim()) {
+        setError("מיקום האירוע הוא שדה חובה");
+        return;
+      }
+      if (!eventTime.trim()) {
+        setError("שעת האירוע היא שדה חובה");
+        return;
+      }
+    }
+
     if (showReceiptFields) {
       const parsedAmount = parseFloat(receiptAmountReceived);
       if (!receiptAmountReceived || Number.isNaN(parsedAmount) || parsedAmount <= 0) {
@@ -256,7 +272,7 @@ export default function DocumentForm({
       customerPhone: trimmedPhone,
       customerEmail: trimmedEmail || undefined,
       issueDate: issueDate || undefined,
-      dueDate: dueDate || undefined,
+      ...(isQuote ? {} : { dueDate: dueDate || undefined }),
       notes: notes || undefined,
       internalNotes: internalNotes || undefined,
       currency,
@@ -266,7 +282,7 @@ export default function DocumentForm({
       taxAmount: docTotals.taxAmount.toFixed(2),
       totalAmount: docTotals.totalAmount.toFixed(2),
       amountDue: docTotals.amountDue.toFixed(2),
-      ...(showPhotographyFields && {
+      ...(showQuoteEventFields && {
         eventDate: eventDate || undefined,
         eventLocation: eventLocation || undefined,
         eventHours: eventHours ? parseFloat(eventHours) : undefined,
@@ -425,26 +441,28 @@ export default function DocumentForm({
               />
             </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="dueDate">תאריך תשלום</Label>
-              <Input
-                id="dueDate"
-                type="date"
-                dir="ltr"
-                value={dueDate}
-                onChange={(e) => {
-                  setDueDateTouched(true);
-                  setDueDate(e.target.value);
-                }}
-                className="text-left"
-              />
-            </div>
+            {!isQuote && (
+              <div className="space-y-1.5">
+                <Label htmlFor="dueDate">תאריך תשלום</Label>
+                <Input
+                  id="dueDate"
+                  type="date"
+                  dir="ltr"
+                  value={dueDate}
+                  onChange={(e) => {
+                    setDueDateTouched(true);
+                    setDueDate(e.target.value);
+                  }}
+                  className="text-left"
+                />
+              </div>
+            )}
           </div>
 
-          {showPhotographyFields && (
+          {showQuoteEventFields && (
             <div className="grid grid-cols-1 gap-4 border-t border-slate-100 pt-4 sm:grid-cols-3">
               <div className="space-y-1.5">
-                <Label htmlFor="eventDate">תאריך האירוע</Label>
+                <Label htmlFor="eventDate">תאריך האירוע *</Label>
                 <Input
                   id="eventDate"
                   type="date"
@@ -452,20 +470,22 @@ export default function DocumentForm({
                   value={eventDate}
                   onChange={(e) => setEventDate(e.target.value)}
                   className="text-left"
+                  required
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="eventLocation">מיקום האירוע</Label>
+                <Label htmlFor="eventLocation">מיקום האירוע *</Label>
                 <Input
                   id="eventLocation"
                   value={eventLocation}
                   onChange={(e) => setEventLocation(e.target.value)}
                   placeholder="אולם אירועים, כתובת..."
                   maxLength={500}
+                  required
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="eventTime">שעת האירוע</Label>
+                <Label htmlFor="eventTime">שעת האירוע *</Label>
                 <Time24Input
                   id="eventTime"
                   value={eventTime}

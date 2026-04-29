@@ -5,6 +5,76 @@ Read this before starting any task.
 
 ---
 
+## [2026-04-29] QUOTE Form Fields — dueDate Removed, Event Fields Required
+
+FILES:
+- src/lib/validations/document.ts (saveDraftSchema)
+- src/components/documents/DocumentForm.tsx
+
+DONE:
+- **DocumentForm**:
+  - When `type === "QUOTE"`, the **תאריך תשלום** (`dueDate`) input is no longer rendered. The payload likewise omits `dueDate` for QUOTE (`...(isQuote ? {} : { dueDate: dueDate || undefined })`). The companion `dueDate` state, `dueDateTouched`, and the `issueDate → dueDate` sync are kept but become inert for QUOTE.
+  - Event fields (**תאריך האירוע**, **מיקום האירוע**, **שעת האירוע**) are now shown for **all** QUOTE drafts — the previous `businessType === "photography"` gate is dropped (replaced with `showQuoteEventFields = type === "QUOTE"`). Other document types still don't show these fields.
+  - Each of the three event labels now carries the required indicator (`*`); the two HTML inputs have the `required` attribute. (`Time24Input` is a custom select-pair that doesn't accept `required` — its label still shows `*` and submission is gated by client-side and schema validation, so this matches the existing pattern used elsewhere in the form.)
+  - `handleSave` runs Hebrew client-side validation before submitting a QUOTE: `"תאריך האירוע הוא שדה חובה"`, `"מיקום האירוע הוא שדה חובה"`, `"שעת האירוע היא שדה חובה"`. Errors surface in the existing `error` banner (matches the pattern used for receipt fields).
+  - `businessType` prop is still accepted from `new` and `edit` pages but is no longer read inside the form — left in place to avoid touching unrelated callers.
+
+- **saveDraftSchema** (`superRefine`):
+  - Added a QUOTE branch (runs before the existing receipt branch). When `data.type === "QUOTE"`:
+    - `eventDate` empty/whitespace → issue at `path: ["eventDate"]`, message `"תאריך האירוע הוא שדה חובה"`.
+    - `eventLocation` trimmed length `< 1` → issue at `path: ["eventLocation"]`, message `"מיקום האירוע הוא שדה חובה"`.
+    - `eventTime` empty/whitespace → issue at `path: ["eventTime"]`, message `"שעת האירוע היא שדה חובה"`.
+  - The existing receipt-fields validation (`receiptAmountReceived`, `receiptPaymentMethod`) is unchanged — the early-return was rewritten so the QUOTE branch can run alongside it.
+
+NOT CHANGED:
+- DB schema (`Document.eventDate / eventLocation / eventTime` remain nullable).
+- Other document types: INVOICE / RECEIPT / INVOICE_RECEIPT / CREDIT_NOTE keep their existing `dueDate` input and behavior, and never see the event-field requirement.
+- `eventHours` remains optional and is not rendered as an input today; it continues to be sent through the payload spread when populated.
+- API routes (`POST /api/documents`, `PATCH /api/documents/[id]`) — the schema change is picked up automatically; both routes already return `422` with `flatten().fieldErrors` on validation failure.
+- Service layer (`createDraft` / `updateDraft`) handles undefined `dueDate` correctly today (`null` is persisted), so no service change was needed.
+
+VERIFICATION:
+- `npm run build` — clean.
+- `npm test` — 6/6 suites, 59/59 tests pass.
+
+---
+
+## [2026-04-29] Document Detail — Action Buttons Cleanup
+
+FILES:
+- src/components/documents/DocumentShareActions.tsx (refactored)
+- src/components/documents/SendDocumentButton.tsx (deleted — unused)
+- src/app/(dashboard)/documents/[id]/page.tsx (props trimmed)
+
+DONE:
+- Removed the email send button (SendDocumentButton) and the WhatsApp share button from the document detail page action bar (mobile + desktop).
+- Replaced the previous "העתקת קישור אישור" button (which opened WhatsApp) with a new primary action **"העתק קישור אישור"** that:
+  - Calls the existing `POST /api/documents/[id]/approval-link` route to mint a fresh approval URL when one is not already cached on the client.
+  - Copies the URL to the clipboard via `navigator.clipboard.writeText` (with a textarea+`execCommand('copy')` fallback for older browsers).
+  - Shows a success toast: **"קישור הועתק"**.
+- The new action uses the brand-primary style (`bg-brand-600`); other actions remain in the secondary/outline style.
+- Final action order (when each action is applicable):
+  1. העתק קישור אישור (primary, quote/issued/not-yet-approved only)
+  2. הורדת PDF
+  3. צור חשבונית
+  4. צור קבלה
+  5. צור חשבונית קבלה (when business is not osek_patur — kept alongside Receipt)
+  6. שכפל מסמך
+  7. צור זיכוי (when applicable — kept before Cancel)
+  8. בטל מסמך (when cancelable)
+- `DocumentShareActions` props slimmed to `{ documentId, publicPdfToken, approvalUrl?, canCopyApprovalLink? }` — customer name/email/phone, document type/number, and total are no longer passed because the email + WhatsApp share paths were removed from this component.
+
+PRESERVED:
+- `/api/documents/[id]/send` route is untouched (backend logic for email delivery remains in place).
+- `/api/documents/[id]/approval-link` route, `mintQuoteApprovalToken`, and `buildApprovalUrl` are unchanged.
+- The mobile action bar still uses `grid-cols-1` → `sm:grid-cols-2` → `lg:flex flex-wrap`, so buttons stack vertically on mobile, two-up on tablet, and wrap at desktop without overflow. All buttons keep `min-h-[44px] w-full` on mobile for touch targets.
+
+VERIFICATION:
+- `npm run build` — clean (only the pre-existing `DYNAMIC_SERVER_USAGE` notice on `/api/reports/revenue`, unrelated to this change).
+- `npm test` — 6/6 suites, 59/59 tests pass.
+
+---
+
 ## [2026-04-12] Legal Document Content — Tasks 3–8 Complete
 
 ### Task 3: Invoice Receipt (חשבונית מס/קבלה)

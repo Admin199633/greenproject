@@ -97,6 +97,30 @@ const baseSaveDraftSchema = z.object({
 });
 
 export const saveDraftSchema = baseSaveDraftSchema.superRefine((data, ctx) => {
+  if (data.type === "QUOTE") {
+    if (!data.eventDate || data.eventDate.trim().length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "תאריך האירוע הוא שדה חובה",
+        path: ["eventDate"],
+      });
+    }
+    if (!data.eventLocation || data.eventLocation.trim().length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "מיקום האירוע הוא שדה חובה",
+        path: ["eventLocation"],
+      });
+    }
+    if (!data.eventTime || data.eventTime.trim().length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "שעת האירוע היא שדה חובה",
+        path: ["eventTime"],
+      });
+    }
+  }
+
   const isReceiptType =
     data.type === "RECEIPT" || data.type === "INVOICE_RECEIPT";
 
