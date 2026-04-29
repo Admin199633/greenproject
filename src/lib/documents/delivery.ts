@@ -250,16 +250,20 @@ ${params.approvalUrl}
 }
 
 export function buildApprovalShareMessage(params: {
-  customerName: string;
+  customerName: string | null | undefined;
   approvalUrl: string;
 }) {
-  const name = params.customerName.trim();
-  const greeting = name ? `הי ${name}` : "היי";
-  return `${greeting}
-מצורפת הצעת המחיר לאישור:
+  const name = params.customerName?.trim() || "לקוח";
+  return `היי ${name} 👋
+
+שלחתי לך הצעת מחיר מפוטופ 📸
+
+לצפייה בפרטי ההצעה ואישור התאריך:
 ${params.approvalUrl}
 
-לאישור ההצעה יש ללחוץ על הקישור.`;
+לאחר האישור התאריך יישמר עבורך ✅
+
+לכל שאלה אני כאן 🙂`;
 }
 
 export function buildWhatsappMessage(params: {

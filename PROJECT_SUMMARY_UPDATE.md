@@ -5,6 +5,40 @@ Read this before starting any task.
 
 ---
 
+## [2026-04-29] Approval Share — WhatsApp Message Body Replaced
+
+FILES:
+- src/lib/documents/delivery.ts (`buildApprovalShareMessage`)
+
+DONE:
+- The approval-link WhatsApp message produced by `buildApprovalShareMessage` (the helper invoked by the **שלח קישור אישור** button on the document detail page) now uses the new copy verbatim:
+  ```
+  היי {customerName} 👋
+
+  שלחתי לך הצעת מחיר מפוטופ 📸
+
+  לצפייה בפרטי ההצעה ואישור התאריך:
+  {approvalUrl}
+
+  לאחר האישור התאריך יישמר עבורך ✅
+
+  לכל שאלה אני כאן 🙂
+  ```
+- `customerName` now accepts `string | null | undefined`; when the trimmed value is empty the helper falls back to `"לקוח"`. `approvalUrl` stays a dynamic, required string and is interpolated as-is into the body.
+- `DocumentShareActions` keeps calling `buildWhatsappShareUrl(phone, message)`, which still applies `encodeURIComponent` to the message and feeds the existing `normalizeWhatsappPhone` for the customer's phone. The button click flow (open-WhatsApp on phone available, copy-link + toast fallback otherwise) is unchanged.
+
+NOT CHANGED:
+- Phone normalization in `normalizeWhatsappPhone` (`+972 → 972`, `0XX → 972XX`, `972` passthrough, non-digits stripped) — untouched.
+- Button label, ordering, styling, and behavior — untouched.
+- The unrelated `buildApprovalWhatsappMessage` helper (used by tests / email) — untouched. The two helpers now produce the same body string but `buildApprovalShareMessage` is the sole one called from the document detail action.
+- Public approval page and post-approval owner redirect flows — untouched.
+
+VERIFICATION:
+- `npm run build` — clean.
+- `npm test` — 6/6 suites, 59/59 tests pass.
+
+---
+
 ## [2026-04-29] Document Detail — Approval Action Becomes WhatsApp Send
 
 FILES:
