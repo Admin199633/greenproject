@@ -1,0 +1,18 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - heading "כניסה למערכת" [level=3] [ref=e5]
+    - generic [ref=e7]:
+      - generic [ref=e8]:
+        - text: אימייל
+        - textbox "אימייל" [ref=e9]:
+          - /placeholder: your@email.com
+      - generic [ref=e10]:
+        - text: סיסמה
+        - textbox "סיסמה" [ref=e11]:
+          - /placeholder: ••••••••
+        - link "שכחתי סיסמה" [ref=e12] [cursor=pointer]:
+          - /url: /green/forgot-password
+      - button "כניסה" [ref=e13] [cursor=pointer]
+      - link "הרשמה" [ref=e14] [cursor=pointer]:
+        - /url: /green/register
+  - alert [ref=e15]

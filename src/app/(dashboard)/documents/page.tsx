@@ -18,7 +18,9 @@ import {
   DocumentStatusBadge,
 } from "@/components/documents/DocumentStatusBadge";
 import DocumentFilters from "@/components/documents/DocumentFilters";
+import PaymentReminderButton from "@/components/documents/PaymentReminderButton";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { getPaymentDueStatus } from "@/lib/documents/payment-status";
 
 interface PageProps {
   searchParams: Promise<{
@@ -127,13 +129,23 @@ export default async function DocumentsPage({ searchParams }: PageProps) {
                   <TableHead>סוג</TableHead>
                   <TableHead>לקוח</TableHead>
                   <TableHead>תאריך</TableHead>
+                  <TableHead>מועד תשלום</TableHead>
+                  <TableHead>סטטוס תשלום</TableHead>
                   <TableHead className="text-left">סה״כ</TableHead>
                   <TableHead>סטטוס</TableHead>
+                  <TableHead>תזכורת</TableHead>
                   <TableHead className="w-20" />
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {documents.map((doc) => (
+                {documents.map((doc) => {
+                  const paymentStatus = getPaymentDueStatus(doc.eventDate);
+                  const customerEmail =
+                    doc.customerEmail?.trim() ||
+                    doc.customer.email?.trim() ||
+                    "";
+                  const hasCustomerEmail = customerEmail.length > 0;
+                  return (
                   <TableRow key={doc.id}>
                     <TableCell className="text-slate-400 text-xs">
                       {doc.number ?? "—"}
@@ -147,11 +159,29 @@ export default async function DocumentsPage({ searchParams }: PageProps) {
                     <TableCell className="text-slate-500 text-xs">
                       {doc.issueDate ? formatDate(doc.issueDate) : "—"}
                     </TableCell>
+                    <TableCell className="text-slate-500 text-xs">
+                      {doc.eventDate ? formatDate(doc.eventDate) : "—"}
+                    </TableCell>
+                    <TableCell className="text-xs font-medium">
+                      {paymentStatus === "none" ? (
+                        <span className="text-slate-400">—</span>
+                      ) : paymentStatus === "overdue" ? (
+                        <span className="text-red-600">Overdue</span>
+                      ) : (
+                        <span className="text-green-600">Upcoming</span>
+                      )}
+                    </TableCell>
                     <TableCell className="text-left tabular-nums font-medium">
                       {formatCurrency(doc.totalAmount.toString())}
                     </TableCell>
                     <TableCell>
                       <DocumentStatusBadge status={doc.status} />
+                    </TableCell>
+                    <TableCell>
+                      <PaymentReminderButton
+                        documentId={doc.id}
+                        hasCustomerEmail={hasCustomerEmail}
+                      />
                     </TableCell>
                     <TableCell className="text-center">
                       <Link
@@ -162,7 +192,8 @@ export default async function DocumentsPage({ searchParams }: PageProps) {
                       </Link>
                     </TableCell>
                   </TableRow>
-                ))}
+                  );
+                })}
               </TableBody>
             </Table>
           </Card>

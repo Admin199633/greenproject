@@ -1,0 +1,58 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e16]:
+    - complementary [ref=e17]:
+      - heading "מסמכים עסקיים" [level=1] [ref=e19]
+      - navigation [ref=e20]:
+        - link "לוח בקרה" [ref=e21] [cursor=pointer]:
+          - /url: /green/dashboard
+        - link "לקוחות" [ref=e22] [cursor=pointer]:
+          - /url: /green/customers
+        - link "מסמכים" [ref=e23] [cursor=pointer]:
+          - /url: /green/documents
+        - link "תשלומים" [ref=e24] [cursor=pointer]:
+          - /url: /green/payments
+        - link "דוחות" [ref=e25] [cursor=pointer]:
+          - /url: /green/reports
+        - link "הגדרות" [ref=e26] [cursor=pointer]:
+          - /url: /green/settings
+    - generic [ref=e27]:
+      - banner [ref=e28]:
+        - generic [ref=e30]: שלום, kniotop@gmail.com
+        - button "התנתק" [ref=e31] [cursor=pointer]
+      - main [ref=e32]
+    - button "פעולות מהירות" [ref=e37] [cursor=pointer]:
+      - generic [ref=e38]: +
+    - generic:
+      - button
+      - dialog:
+        - generic:
+          - heading [level=2]: פעולה מהירה
+          - button: ×
+        - generic:
+          - generic:
+            - heading [level=3]: מסמכי הכנסות
+            - list:
+              - listitem:
+                - link:
+                  - /url: /green/documents/new?type=quote
+                  - generic: הצעת מחיר
+                  - generic: ‹
+              - listitem:
+                - link:
+                  - /url: /green/documents/new?type=invoice
+                  - generic: חשבונית
+                  - generic: ‹
+              - listitem:
+                - link:
+                  - /url: /green/documents/new?type=receipt
+                  - generic: קבלה
+                  - generic: ‹
+          - generic:
+            - heading [level=3]: מסמכי ניהול שוטף
+            - list:
+              - listitem:
+                - link:
+                  - /url: /green/documents/new?type=delivery
+                  - generic: תעודת משלוח
+                  - generic: ‹
+  - alert [ref=e15]

@@ -1,0 +1,96 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e16]:
+    - complementary [ref=e17]:
+      - heading "מסמכים עסקיים" [level=1] [ref=e19]
+      - navigation [ref=e20]:
+        - link "לוח בקרה" [ref=e21] [cursor=pointer]:
+          - /url: /green/dashboard
+        - link "לקוחות" [ref=e22] [cursor=pointer]:
+          - /url: /green/customers
+        - link "מסמכים" [ref=e23] [cursor=pointer]:
+          - /url: /green/documents
+        - link "תשלומים" [ref=e24] [cursor=pointer]:
+          - /url: /green/payments
+        - link "דוחות" [ref=e25] [cursor=pointer]:
+          - /url: /green/reports
+        - link "הגדרות" [ref=e26] [cursor=pointer]:
+          - /url: /green/settings
+    - generic [ref=e27]:
+      - banner [ref=e28]:
+        - generic [ref=e30]: שלום, משה ישראלי
+        - button "התנתק" [ref=e31] [cursor=pointer]
+      - main [ref=e32]:
+        - generic [ref=e33]:
+          - generic [ref=e34]:
+            - heading "לוח בקרה" [level=2] [ref=e35]
+            - paragraph [ref=e36]: ברוך הבא, משה ישראלי
+          - generic [ref=e37]:
+            - generic [ref=e38]:
+              - heading "לקוחות פעילים" [level=3] [ref=e40]
+              - paragraph [ref=e42]: "0"
+            - generic [ref=e43]:
+              - heading "מסמכים שהונפקו" [level=3] [ref=e45]
+              - paragraph [ref=e47]: "0"
+            - generic [ref=e48]:
+              - heading "סכום ששולם" [level=3] [ref=e50]
+              - paragraph [ref=e52]: ‏0.00 ‏₪
+            - generic [ref=e53]:
+              - heading "יתרה פתוחה" [level=3] [ref=e55]
+              - paragraph [ref=e57]: ‏0.00 ‏₪
+          - generic [ref=e58]:
+            - generic [ref=e59]:
+              - generic [ref=e60]:
+                - heading "מסמכים אחרונים" [level=3] [ref=e61]
+                - link "לכל המסמכים" [ref=e62] [cursor=pointer]:
+                  - /url: /green/documents
+              - paragraph [ref=e64]: עדיין אין מסמכים להצגה
+            - generic [ref=e65]:
+              - generic [ref=e66]:
+                - heading "תשלומים אחרונים" [level=3] [ref=e67]
+                - link "לכל התשלומים" [ref=e68] [cursor=pointer]:
+                  - /url: /green/payments
+              - paragraph [ref=e70]: עדיין אין תשלומים להצגה
+          - generic [ref=e71]:
+            - generic [ref=e72]:
+              - generic [ref=e73]:
+                - heading "מסמכים בפיגור" [level=3] [ref=e74]
+                - paragraph [ref=e75]: מסמכים שהונפקו, מועד התשלום שלהם עבר, ועדיין נותרה יתרה פתוחה
+              - link "בדיקת מסמכים" [ref=e76] [cursor=pointer]:
+                - /url: /green/documents
+            - paragraph [ref=e78]: אין כרגע מסמכים בפיגור
+    - button "פעולות מהירות" [ref=e79] [cursor=pointer]:
+      - generic [ref=e80]: +
+    - generic:
+      - button
+      - dialog:
+        - generic:
+          - heading [level=2]: פעולה מהירה
+          - button: ×
+        - generic:
+          - generic:
+            - heading [level=3]: מסמכי הכנסות
+            - list:
+              - listitem:
+                - link:
+                  - /url: /green/documents/new?type=quote
+                  - generic: הצעת מחיר
+                  - generic: ‹
+              - listitem:
+                - link:
+                  - /url: /green/documents/new?type=invoice
+                  - generic: חשבונית
+                  - generic: ‹
+              - listitem:
+                - link:
+                  - /url: /green/documents/new?type=receipt
+                  - generic: קבלה
+                  - generic: ‹
+          - generic:
+            - heading [level=3]: מסמכי ניהול שוטף
+            - list:
+              - listitem:
+                - link:
+                  - /url: /green/documents/new?type=delivery
+                  - generic: תעודת משלוח
+                  - generic: ‹
+  - alert [ref=e15]

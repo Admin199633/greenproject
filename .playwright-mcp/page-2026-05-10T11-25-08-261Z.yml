@@ -1,0 +1,99 @@
+- generic [ref=e2]:
+  - complementary [ref=e3]:
+    - heading "מסמכים עסקיים" [level=1] [ref=e5]
+    - navigation [ref=e6]:
+      - link "לוח בקרה" [ref=e7] [cursor=pointer]:
+        - /url: /green/dashboard
+      - link "לקוחות" [ref=e8] [cursor=pointer]:
+        - /url: /green/customers
+      - link "מסמכים" [ref=e9] [cursor=pointer]:
+        - /url: /green/documents
+      - link "תשלומים" [ref=e10] [cursor=pointer]:
+        - /url: /green/payments
+      - link "דוחות" [ref=e11] [cursor=pointer]:
+        - /url: /green/reports
+      - link "הגדרות" [ref=e12] [cursor=pointer]:
+        - /url: /green/settings
+  - generic [ref=e13]:
+    - banner [ref=e14]:
+      - generic [ref=e16]: שלום, משה ישראלי
+      - button "התנתק" [ref=e17] [cursor=pointer]
+    - main [ref=e18]:
+      - generic [ref=e19]:
+        - generic [ref=e20]:
+          - generic [ref=e21]:
+            - heading "מסמכים" [level=2] [ref=e22]
+            - paragraph [ref=e23]: 0 מסמכים
+          - generic [ref=e24]:
+            - link "ייצוא CSV" [ref=e25] [cursor=pointer]:
+              - /url: /green/api/documents/export?
+            - link "+ מסמך חדש" [ref=e26] [cursor=pointer]:
+              - /url: /green/documents/new
+        - generic [ref=e27]:
+          - generic [ref=e28]:
+            - text: חיפוש
+            - searchbox "מספר מסמך / שם לקוח..." [ref=e29]
+          - generic [ref=e30]:
+            - text: סוג
+            - combobox [ref=e31]:
+              - option "כל הסוגים" [selected]
+              - option "הצעת מחיר"
+              - option "חשבונית מס"
+              - option "קבלה"
+              - option "חשבונית מס / קבלה"
+              - option "זיכוי"
+          - generic [ref=e32]:
+            - text: לקוח
+            - combobox [ref=e33]:
+              - option "כל הלקוחות" [selected]
+          - generic [ref=e34]:
+            - text: סטטוס
+            - combobox [ref=e35]:
+              - option "כל הסטטוסים" [selected]
+              - option "טיוטה"
+              - option "הונפק"
+              - option "שולם חלקית"
+              - option "שולם"
+              - option "בוטל"
+          - generic [ref=e36]:
+            - text: מתאריך
+            - textbox [ref=e37]
+          - generic [ref=e38]:
+            - text: עד תאריך
+            - textbox [ref=e39]
+        - generic [ref=e40]: לא נמצאו מסמכים
+  - button "פעולות מהירות" [ref=e41] [cursor=pointer]:
+    - generic [ref=e42]: +
+  - generic:
+    - button
+    - dialog:
+      - generic:
+        - heading [level=2]: פעולה מהירה
+        - button: ×
+      - generic:
+        - generic:
+          - heading [level=3]: מסמכי הכנסות
+          - list:
+            - listitem:
+              - link:
+                - /url: /green/documents/new?type=quote
+                - generic: הצעת מחיר
+                - generic: ‹
+            - listitem:
+              - link:
+                - /url: /green/documents/new?type=invoice
+                - generic: חשבונית
+                - generic: ‹
+            - listitem:
+              - link:
+                - /url: /green/documents/new?type=receipt
+                - generic: קבלה
+                - generic: ‹
+        - generic:
+          - heading [level=3]: מסמכי ניהול שוטף
+          - list:
+            - listitem:
+              - link:
+                - /url: /green/documents/new?type=delivery
+                - generic: תעודת משלוח
+                - generic: ‹

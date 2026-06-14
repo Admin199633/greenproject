@@ -1,0 +1,488 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - complementary [ref=e3]:
+      - heading "מסמכים עסקיים" [level=1] [ref=e5]
+      - navigation [ref=e6]:
+        - link "לוח בקרה" [ref=e7] [cursor=pointer]:
+          - /url: /green/dashboard
+        - link "לקוחות" [ref=e8] [cursor=pointer]:
+          - /url: /green/customers
+        - link "מסמכים" [ref=e9] [cursor=pointer]:
+          - /url: /green/documents
+        - link "תשלומים" [ref=e10] [cursor=pointer]:
+          - /url: /green/payments
+        - link "דוחות" [ref=e11] [cursor=pointer]:
+          - /url: /green/reports
+        - link "הגדרות" [ref=e12] [cursor=pointer]:
+          - /url: /green/settings
+    - generic [ref=e13]:
+      - banner [ref=e14]:
+        - generic [ref=e16]: שלום, kniotop@gmail.com
+        - button "התנתק" [ref=e17] [cursor=pointer]
+      - main [ref=e18]:
+        - generic [ref=e19]:
+          - generic [ref=e20]:
+            - generic [ref=e21]:
+              - heading "מסמכים" [level=2] [ref=e22]
+              - paragraph [ref=e23]: 23 מסמכים
+            - generic [ref=e24]:
+              - link "ייצוא CSV" [ref=e25] [cursor=pointer]:
+                - /url: /green/api/documents/export?
+              - link "+ מסמך חדש" [ref=e26] [cursor=pointer]:
+                - /url: /green/documents/new
+          - generic [ref=e27]:
+            - generic [ref=e28]:
+              - text: חיפוש
+              - searchbox "מספר מסמך / שם לקוח..." [ref=e29]
+            - generic [ref=e30]:
+              - text: סוג
+              - combobox [ref=e31]:
+                - option "כל הסוגים" [selected]
+                - option "הצעת מחיר"
+                - option "חשבונית מס"
+                - option "קבלה"
+                - option "חשבונית מס / קבלה"
+                - option "זיכוי"
+            - generic [ref=e32]:
+              - text: לקוח
+              - combobox [ref=e33]:
+                - option "כל הלקוחות" [selected]
+                - option "דורלי"
+                - option "Lior Swisa"
+                - option "רון סויסה"
+            - generic [ref=e34]:
+              - text: סטטוס
+              - combobox [ref=e35]:
+                - option "כל הסטטוסים" [selected]
+                - option "טיוטה"
+                - option "הונפק"
+                - option "שולם חלקית"
+                - option "שולם"
+                - option "בוטל"
+            - generic [ref=e36]:
+              - text: מתאריך
+              - textbox [ref=e37]
+            - generic [ref=e38]:
+              - text: עד תאריך
+              - textbox [ref=e39]
+          - table [ref=e42]:
+            - rowgroup [ref=e43]:
+              - row "מספר סוג לקוח תאריך מועד תשלום סטטוס תשלום סה״כ סטטוס תזכורת" [ref=e44]:
+                - columnheader "מספר" [ref=e45]
+                - columnheader "סוג" [ref=e46]
+                - columnheader "לקוח" [ref=e47]
+                - columnheader "תאריך" [ref=e48]
+                - columnheader "מועד תשלום" [ref=e49]
+                - columnheader "סטטוס תשלום" [ref=e50]
+                - columnheader "סה״כ" [ref=e51]
+                - columnheader "סטטוס" [ref=e52]
+                - columnheader "תזכורת" [ref=e53]
+                - columnheader [ref=e54]
+            - rowgroup [ref=e55]:
+              - row "QUO-0023 הצעת מחיר דורלי 10.5.2026 19.5.2026 Upcoming ‏1,000.00 ‏₪ הונפק Send Reminder פרטים" [ref=e56]:
+                - cell "QUO-0023" [ref=e57]
+                - cell "הצעת מחיר" [ref=e58]:
+                  - generic [ref=e59]: הצעת מחיר
+                - cell "דורלי" [ref=e60]
+                - cell "10.5.2026" [ref=e61]
+                - cell "19.5.2026" [ref=e62]
+                - cell "Upcoming" [ref=e63]
+                - cell "‏1,000.00 ‏₪" [ref=e64]
+                - cell "הונפק" [ref=e65]:
+                  - generic [ref=e66]: הונפק
+                - cell "Send Reminder" [ref=e67]:
+                  - button "Send Reminder" [ref=e68] [cursor=pointer]
+                - cell "פרטים" [ref=e69]:
+                  - link "פרטים" [ref=e70] [cursor=pointer]:
+                    - /url: /green/documents/cmozgxisa0003l7048ar60hv8
+              - row "QUO-0022 הצעת מחיר Lior Swisa 29.4.2026 30.4.2026 Overdue ‏20,000.00 ‏₪ הונפק Send Reminder פרטים" [ref=e71]:
+                - cell "QUO-0022" [ref=e72]
+                - cell "הצעת מחיר" [ref=e73]:
+                  - generic [ref=e74]: הצעת מחיר
+                - cell "Lior Swisa" [ref=e75]
+                - cell "29.4.2026" [ref=e76]
+                - cell "30.4.2026" [ref=e77]
+                - cell "Overdue" [ref=e78]
+                - cell "‏20,000.00 ‏₪" [ref=e79]
+                - cell "הונפק" [ref=e80]:
+                  - generic [ref=e81]: הונפק
+                - cell "Send Reminder" [ref=e82]:
+                  - button "Send Reminder" [ref=e83] [cursor=pointer]
+                - cell "פרטים" [ref=e84]:
+                  - link "פרטים" [ref=e85] [cursor=pointer]:
+                    - /url: /green/documents/cmojuljqh0001jp04s72uj18s
+              - row "QUO-0021 הצעת מחיר Lior Swisa 29.4.2026 30.4.2026 Overdue ‏20,000.00 ‏₪ הונפק Send Reminder פרטים" [ref=e86]:
+                - cell "QUO-0021" [ref=e87]
+                - cell "הצעת מחיר" [ref=e88]:
+                  - generic [ref=e89]: הצעת מחיר
+                - cell "Lior Swisa" [ref=e90]
+                - cell "29.4.2026" [ref=e91]
+                - cell "30.4.2026" [ref=e92]
+                - cell "Overdue" [ref=e93]
+                - cell "‏20,000.00 ‏₪" [ref=e94]
+                - cell "הונפק" [ref=e95]:
+                  - generic [ref=e96]: הונפק
+                - cell "Send Reminder" [ref=e97]:
+                  - button "Send Reminder" [ref=e98] [cursor=pointer]
+                - cell "פרטים" [ref=e99]:
+                  - link "פרטים" [ref=e100] [cursor=pointer]:
+                    - /url: /green/documents/cmojtd5rx0001la04p7w1e8zi
+              - row "QUO-0020 הצעת מחיר Lior Swisa 29.4.2026 30.4.2026 Overdue ‏20,000.00 ‏₪ הונפק Send Reminder פרטים" [ref=e101]:
+                - cell "QUO-0020" [ref=e102]
+                - cell "הצעת מחיר" [ref=e103]:
+                  - generic [ref=e104]: הצעת מחיר
+                - cell "Lior Swisa" [ref=e105]
+                - cell "29.4.2026" [ref=e106]
+                - cell "30.4.2026" [ref=e107]
+                - cell "Overdue" [ref=e108]
+                - cell "‏20,000.00 ‏₪" [ref=e109]
+                - cell "הונפק" [ref=e110]:
+                  - generic [ref=e111]: הונפק
+                - cell "Send Reminder" [ref=e112]:
+                  - button "Send Reminder" [ref=e113] [cursor=pointer]
+                - cell "פרטים" [ref=e114]:
+                  - link "פרטים" [ref=e115] [cursor=pointer]:
+                    - /url: /green/documents/cmojszcyp0001kz04ueib544x
+              - row "QUO-0019 הצעת מחיר Lior Swisa 29.4.2026 30.4.2026 Overdue ‏20,000.00 ‏₪ הונפק Send Reminder פרטים" [ref=e116]:
+                - cell "QUO-0019" [ref=e117]
+                - cell "הצעת מחיר" [ref=e118]:
+                  - generic [ref=e119]: הצעת מחיר
+                - cell "Lior Swisa" [ref=e120]
+                - cell "29.4.2026" [ref=e121]
+                - cell "30.4.2026" [ref=e122]
+                - cell "Overdue" [ref=e123]
+                - cell "‏20,000.00 ‏₪" [ref=e124]
+                - cell "הונפק" [ref=e125]:
+                  - generic [ref=e126]: הונפק
+                - cell "Send Reminder" [ref=e127]:
+                  - button "Send Reminder" [ref=e128] [cursor=pointer]
+                - cell "פרטים" [ref=e129]:
+                  - link "פרטים" [ref=e130] [cursor=pointer]:
+                    - /url: /green/documents/cmojssd7y0001jr04wkbrhy2b
+              - row "QUO-0018 הצעת מחיר Lior Swisa 29.4.2026 30.4.2026 Overdue ‏22,000.00 ‏₪ הונפק Send Reminder פרטים" [ref=e131]:
+                - cell "QUO-0018" [ref=e132]
+                - cell "הצעת מחיר" [ref=e133]:
+                  - generic [ref=e134]: הצעת מחיר
+                - cell "Lior Swisa" [ref=e135]
+                - cell "29.4.2026" [ref=e136]
+                - cell "30.4.2026" [ref=e137]
+                - cell "Overdue" [ref=e138]
+                - cell "‏22,000.00 ‏₪" [ref=e139]
+                - cell "הונפק" [ref=e140]:
+                  - generic [ref=e141]: הונפק
+                - cell "Send Reminder" [ref=e142]:
+                  - button "Send Reminder" [ref=e143] [cursor=pointer]
+                - cell "פרטים" [ref=e144]:
+                  - link "פרטים" [ref=e145] [cursor=pointer]:
+                    - /url: /green/documents/cmojsqb7w0001jv048smlejfw
+              - row "QUO-0017 הצעת מחיר Lior Swisa 29.4.2026 9.5.2026 Overdue ‏20,000.00 ‏₪ הונפק Send Reminder פרטים" [ref=e146]:
+                - cell "QUO-0017" [ref=e147]
+                - cell "הצעת מחיר" [ref=e148]:
+                  - generic [ref=e149]: הצעת מחיר
+                - cell "Lior Swisa" [ref=e150]
+                - cell "29.4.2026" [ref=e151]
+                - cell "9.5.2026" [ref=e152]
+                - cell "Overdue" [ref=e153]
+                - cell "‏20,000.00 ‏₪" [ref=e154]
+                - cell "הונפק" [ref=e155]:
+                  - generic [ref=e156]: הונפק
+                - cell "Send Reminder" [ref=e157]:
+                  - button "Send Reminder" [ref=e158] [cursor=pointer]
+                - cell "פרטים" [ref=e159]:
+                  - link "פרטים" [ref=e160] [cursor=pointer]:
+                    - /url: /green/documents/cmojsh3vn0001jp045big9v3j
+              - row "QUO-0016 הצעת מחיר Lior Swisa 29.4.2026 7.5.2026 Overdue ‏20,000.00 ‏₪ הונפק Send Reminder פרטים" [ref=e161]:
+                - cell "QUO-0016" [ref=e162]
+                - cell "הצעת מחיר" [ref=e163]:
+                  - generic [ref=e164]: הצעת מחיר
+                - cell "Lior Swisa" [ref=e165]
+                - cell "29.4.2026" [ref=e166]
+                - cell "7.5.2026" [ref=e167]
+                - cell "Overdue" [ref=e168]
+                - cell "‏20,000.00 ‏₪" [ref=e169]
+                - cell "הונפק" [ref=e170]:
+                  - generic [ref=e171]: הונפק
+                - cell "Send Reminder" [ref=e172]:
+                  - button "Send Reminder" [ref=e173] [cursor=pointer]
+                - cell "פרטים" [ref=e174]:
+                  - link "פרטים" [ref=e175] [cursor=pointer]:
+                    - /url: /green/documents/cmojpzzsg000fky04nhpvwgh9
+              - row "QUO-0015 הצעת מחיר Lior Swisa 29.4.2026 9.5.2026 Overdue ‏20,000.00 ‏₪ הונפק Send Reminder פרטים" [ref=e176]:
+                - cell "QUO-0015" [ref=e177]
+                - cell "הצעת מחיר" [ref=e178]:
+                  - generic [ref=e179]: הצעת מחיר
+                - cell "Lior Swisa" [ref=e180]
+                - cell "29.4.2026" [ref=e181]
+                - cell "9.5.2026" [ref=e182]
+                - cell "Overdue" [ref=e183]
+                - cell "‏20,000.00 ‏₪" [ref=e184]
+                - cell "הונפק" [ref=e185]:
+                  - generic [ref=e186]: הונפק
+                - cell "Send Reminder" [ref=e187]:
+                  - button "Send Reminder" [ref=e188] [cursor=pointer]
+                - cell "פרטים" [ref=e189]:
+                  - link "פרטים" [ref=e190] [cursor=pointer]:
+                    - /url: /green/documents/cmojpve470008ky04l0f3up6u
+              - row "QUO-0014 הצעת מחיר Lior Swisa 29.4.2026 — — ‏20,000.00 ‏₪ הונפק Send Reminder פרטים" [ref=e191]:
+                - cell "QUO-0014" [ref=e192]
+                - cell "הצעת מחיר" [ref=e193]:
+                  - generic [ref=e194]: הצעת מחיר
+                - cell "Lior Swisa" [ref=e195]
+                - cell "29.4.2026" [ref=e196]
+                - cell "—" [ref=e197]
+                - cell "—" [ref=e198]
+                - cell "‏20,000.00 ‏₪" [ref=e199]
+                - cell "הונפק" [ref=e200]:
+                  - generic [ref=e201]: הונפק
+                - cell "Send Reminder" [ref=e202]:
+                  - button "Send Reminder" [ref=e203] [cursor=pointer]
+                - cell "פרטים" [ref=e204]:
+                  - link "פרטים" [ref=e205] [cursor=pointer]:
+                    - /url: /green/documents/cmojpqw7z0001ky04r5op6692
+              - row "QUO-0013 הצעת מחיר Lior Swisa 29.4.2026 9.5.2026 Overdue ‏20,000.00 ‏₪ הונפק Send Reminder פרטים" [ref=e206]:
+                - cell "QUO-0013" [ref=e207]
+                - cell "הצעת מחיר" [ref=e208]:
+                  - generic [ref=e209]: הצעת מחיר
+                - cell "Lior Swisa" [ref=e210]
+                - cell "29.4.2026" [ref=e211]
+                - cell "9.5.2026" [ref=e212]
+                - cell "Overdue" [ref=e213]
+                - cell "‏20,000.00 ‏₪" [ref=e214]
+                - cell "הונפק" [ref=e215]:
+                  - generic [ref=e216]: הונפק
+                - cell "Send Reminder" [ref=e217]:
+                  - button "Send Reminder" [ref=e218] [cursor=pointer]
+                - cell "פרטים" [ref=e219]:
+                  - link "פרטים" [ref=e220] [cursor=pointer]:
+                    - /url: /green/documents/cmojp80ze0001la04sfya2zum
+              - row "QUO-0012 הצעת מחיר Lior Swisa 29.4.2026 8.5.2026 Overdue ‏20,000.00 ‏₪ הונפק Send Reminder פרטים" [ref=e221]:
+                - cell "QUO-0012" [ref=e222]
+                - cell "הצעת מחיר" [ref=e223]:
+                  - generic [ref=e224]: הצעת מחיר
+                - cell "Lior Swisa" [ref=e225]
+                - cell "29.4.2026" [ref=e226]
+                - cell "8.5.2026" [ref=e227]
+                - cell "Overdue" [ref=e228]
+                - cell "‏20,000.00 ‏₪" [ref=e229]
+                - cell "הונפק" [ref=e230]:
+                  - generic [ref=e231]: הונפק
+                - cell "Send Reminder" [ref=e232]:
+                  - button "Send Reminder" [ref=e233] [cursor=pointer]
+                - cell "פרטים" [ref=e234]:
+                  - link "פרטים" [ref=e235] [cursor=pointer]:
+                    - /url: /green/documents/cmojoucm90003jw04opvw1p5x
+              - row "QUO-0011 הצעת מחיר Lior Swisa 28.4.2026 9.5.2026 Overdue ‏20,000.00 ‏₪ הונפק Send Reminder פרטים" [ref=e236]:
+                - cell "QUO-0011" [ref=e237]
+                - cell "הצעת מחיר" [ref=e238]:
+                  - generic [ref=e239]: הצעת מחיר
+                - cell "Lior Swisa" [ref=e240]
+                - cell "28.4.2026" [ref=e241]
+                - cell "9.5.2026" [ref=e242]
+                - cell "Overdue" [ref=e243]
+                - cell "‏20,000.00 ‏₪" [ref=e244]
+                - cell "הונפק" [ref=e245]:
+                  - generic [ref=e246]: הונפק
+                - cell "Send Reminder" [ref=e247]:
+                  - button "Send Reminder" [ref=e248] [cursor=pointer]
+                - cell "פרטים" [ref=e249]:
+                  - link "פרטים" [ref=e250] [cursor=pointer]:
+                    - /url: /green/documents/cmoj6yiwk0001lb04k0yr3t5f
+              - row "QUO-0010 הצעת מחיר Lior Swisa 28.4.2026 9.5.2026 Overdue ‏20,000.00 ‏₪ הונפק Send Reminder פרטים" [ref=e251]:
+                - cell "QUO-0010" [ref=e252]
+                - cell "הצעת מחיר" [ref=e253]:
+                  - generic [ref=e254]: הצעת מחיר
+                - cell "Lior Swisa" [ref=e255]
+                - cell "28.4.2026" [ref=e256]
+                - cell "9.5.2026" [ref=e257]
+                - cell "Overdue" [ref=e258]
+                - cell "‏20,000.00 ‏₪" [ref=e259]
+                - cell "הונפק" [ref=e260]:
+                  - generic [ref=e261]: הונפק
+                - cell "Send Reminder" [ref=e262]:
+                  - button "Send Reminder" [ref=e263] [cursor=pointer]
+                - cell "פרטים" [ref=e264]:
+                  - link "פרטים" [ref=e265] [cursor=pointer]:
+                    - /url: /green/documents/cmoj6dzda0001l204lbsgsqv5
+              - row "QUO-0009 הצעת מחיר Lior Swisa 28.4.2026 8.5.2026 Overdue ‏20,000.00 ‏₪ הונפק Send Reminder פרטים" [ref=e266]:
+                - cell "QUO-0009" [ref=e267]
+                - cell "הצעת מחיר" [ref=e268]:
+                  - generic [ref=e269]: הצעת מחיר
+                - cell "Lior Swisa" [ref=e270]
+                - cell "28.4.2026" [ref=e271]
+                - cell "8.5.2026" [ref=e272]
+                - cell "Overdue" [ref=e273]
+                - cell "‏20,000.00 ‏₪" [ref=e274]
+                - cell "הונפק" [ref=e275]:
+                  - generic [ref=e276]: הונפק
+                - cell "Send Reminder" [ref=e277]:
+                  - button "Send Reminder" [ref=e278] [cursor=pointer]
+                - cell "פרטים" [ref=e279]:
+                  - link "פרטים" [ref=e280] [cursor=pointer]:
+                    - /url: /green/documents/cmoj62pwy0001js0497i0mywb
+              - row "QUO-0008 הצעת מחיר Lior Swisa 28.4.2026 1.5.2026 Overdue ‏20,000.00 ‏₪ הונפק Send Reminder פרטים" [ref=e281]:
+                - cell "QUO-0008" [ref=e282]
+                - cell "הצעת מחיר" [ref=e283]:
+                  - generic [ref=e284]: הצעת מחיר
+                - cell "Lior Swisa" [ref=e285]
+                - cell "28.4.2026" [ref=e286]
+                - cell "1.5.2026" [ref=e287]
+                - cell "Overdue" [ref=e288]
+                - cell "‏20,000.00 ‏₪" [ref=e289]
+                - cell "הונפק" [ref=e290]:
+                  - generic [ref=e291]: הונפק
+                - cell "Send Reminder" [ref=e292]:
+                  - button "Send Reminder" [ref=e293] [cursor=pointer]
+                - cell "פרטים" [ref=e294]:
+                  - link "פרטים" [ref=e295] [cursor=pointer]:
+                    - /url: /green/documents/cmoj5e3yl0001l40455ih3nbe
+              - row "QUO-0007 הצעת מחיר Lior Swisa 28.4.2026 2.5.2026 Overdue ‏20,000.00 ‏₪ הונפק Send Reminder פרטים" [ref=e296]:
+                - cell "QUO-0007" [ref=e297]
+                - cell "הצעת מחיר" [ref=e298]:
+                  - generic [ref=e299]: הצעת מחיר
+                - cell "Lior Swisa" [ref=e300]
+                - cell "28.4.2026" [ref=e301]
+                - cell "2.5.2026" [ref=e302]
+                - cell "Overdue" [ref=e303]
+                - cell "‏20,000.00 ‏₪" [ref=e304]
+                - cell "הונפק" [ref=e305]:
+                  - generic [ref=e306]: הונפק
+                - cell "Send Reminder" [ref=e307]:
+                  - button "Send Reminder" [ref=e308] [cursor=pointer]
+                - cell "פרטים" [ref=e309]:
+                  - link "פרטים" [ref=e310] [cursor=pointer]:
+                    - /url: /green/documents/cmoj4tna30001jj047zh71che
+              - row "QUO-0006 הצעת מחיר Lior Swisa 28.4.2026 — — ‏20,000.00 ‏₪ הונפק Send Reminder פרטים" [ref=e311]:
+                - cell "QUO-0006" [ref=e312]
+                - cell "הצעת מחיר" [ref=e313]:
+                  - generic [ref=e314]: הצעת מחיר
+                - cell "Lior Swisa" [ref=e315]
+                - cell "28.4.2026" [ref=e316]
+                - cell "—" [ref=e317]
+                - cell "—" [ref=e318]
+                - cell "‏20,000.00 ‏₪" [ref=e319]
+                - cell "הונפק" [ref=e320]:
+                  - generic [ref=e321]: הונפק
+                - cell "Send Reminder" [ref=e322]:
+                  - button "Send Reminder" [ref=e323] [cursor=pointer]
+                - cell "פרטים" [ref=e324]:
+                  - link "פרטים" [ref=e325] [cursor=pointer]:
+                    - /url: /green/documents/cmoj4bpke0003l504bzsbr512
+              - row "QUO-0005 הצעת מחיר Lior Swisa 28.4.2026 9.5.2026 Overdue ‏1,000.00 ‏₪ הונפק Send Reminder פרטים" [ref=e326]:
+                - cell "QUO-0005" [ref=e327]
+                - cell "הצעת מחיר" [ref=e328]:
+                  - generic [ref=e329]: הצעת מחיר
+                - cell "Lior Swisa" [ref=e330]
+                - cell "28.4.2026" [ref=e331]
+                - cell "9.5.2026" [ref=e332]
+                - cell "Overdue" [ref=e333]
+                - cell "‏1,000.00 ‏₪" [ref=e334]
+                - cell "הונפק" [ref=e335]:
+                  - generic [ref=e336]: הונפק
+                - cell "Send Reminder" [ref=e337]:
+                  - button "Send Reminder" [ref=e338] [cursor=pointer]
+                - cell "פרטים" [ref=e339]:
+                  - link "פרטים" [ref=e340] [cursor=pointer]:
+                    - /url: /green/documents/cmoizetgt0008jm04ti1db3ml
+              - row "QUO-0004 הצעת מחיר Lior Swisa 28.4.2026 — — ‏1,000.00 ‏₪ הונפק Send Reminder פרטים" [ref=e341]:
+                - cell "QUO-0004" [ref=e342]
+                - cell "הצעת מחיר" [ref=e343]:
+                  - generic [ref=e344]: הצעת מחיר
+                - cell "Lior Swisa" [ref=e345]
+                - cell "28.4.2026" [ref=e346]
+                - cell "—" [ref=e347]
+                - cell "—" [ref=e348]
+                - cell "‏1,000.00 ‏₪" [ref=e349]
+                - cell "הונפק" [ref=e350]:
+                  - generic [ref=e351]: הונפק
+                - cell "Send Reminder" [ref=e352]:
+                  - button "Send Reminder" [ref=e353] [cursor=pointer]
+                - cell "פרטים" [ref=e354]:
+                  - link "פרטים" [ref=e355] [cursor=pointer]:
+                    - /url: /green/documents/cmoizbtc30001jm04tm2rmnqv
+              - row "QUO-0003 הצעת מחיר Lior Swisa 28.4.2026 30.4.2026 Overdue ‏1,000.00 ‏₪ הונפק Send Reminder פרטים" [ref=e356]:
+                - cell "QUO-0003" [ref=e357]
+                - cell "הצעת מחיר" [ref=e358]:
+                  - generic [ref=e359]: הצעת מחיר
+                - cell "Lior Swisa" [ref=e360]
+                - cell "28.4.2026" [ref=e361]
+                - cell "30.4.2026" [ref=e362]
+                - cell "Overdue" [ref=e363]
+                - cell "‏1,000.00 ‏₪" [ref=e364]
+                - cell "הונפק" [ref=e365]:
+                  - generic [ref=e366]: הונפק
+                - cell "Send Reminder" [ref=e367]:
+                  - button "Send Reminder" [ref=e368] [cursor=pointer]
+                - cell "פרטים" [ref=e369]:
+                  - link "פרטים" [ref=e370] [cursor=pointer]:
+                    - /url: /green/documents/cmoikue220003jz04bv4dafzs
+              - row "QUO-0002 הצעת מחיר רון סויסה 28.4.2026 9.5.2026 Overdue ‏1,000.00 ‏₪ הונפק Send Reminder פרטים" [ref=e371]:
+                - cell "QUO-0002" [ref=e372]
+                - cell "הצעת מחיר" [ref=e373]:
+                  - generic [ref=e374]: הצעת מחיר
+                - cell "רון סויסה" [ref=e375]
+                - cell "28.4.2026" [ref=e376]
+                - cell "9.5.2026" [ref=e377]
+                - cell "Overdue" [ref=e378]
+                - cell "‏1,000.00 ‏₪" [ref=e379]
+                - cell "הונפק" [ref=e380]:
+                  - generic [ref=e381]: הונפק
+                - cell "Send Reminder" [ref=e382]:
+                  - button "Send Reminder" [ref=e383] [cursor=pointer]
+                - cell "פרטים" [ref=e384]:
+                  - link "פרטים" [ref=e385] [cursor=pointer]:
+                    - /url: /green/documents/cmoijrl3b000el204m7t9d4xw
+              - row "QUO-0001 הצעת מחיר רון סויסה 28.4.2026 30.4.2026 Overdue ‏1,000.00 ‏₪ הונפק Send Reminder פרטים" [ref=e386]:
+                - cell "QUO-0001" [ref=e387]
+                - cell "הצעת מחיר" [ref=e388]:
+                  - generic [ref=e389]: הצעת מחיר
+                - cell "רון סויסה" [ref=e390]
+                - cell "28.4.2026" [ref=e391]
+                - cell "30.4.2026" [ref=e392]
+                - cell "Overdue" [ref=e393]
+                - cell "‏1,000.00 ‏₪" [ref=e394]
+                - cell "הונפק" [ref=e395]:
+                  - generic [ref=e396]: הונפק
+                - cell "Send Reminder" [ref=e397]:
+                  - button "Send Reminder" [ref=e398] [cursor=pointer]
+                - cell "פרטים" [ref=e399]:
+                  - link "פרטים" [ref=e400] [cursor=pointer]:
+                    - /url: /green/documents/cmoijpimf0007l2042p3vhm6i
+    - button "פעולות מהירות" [ref=e401] [cursor=pointer]:
+      - generic [ref=e402]: +
+    - generic:
+      - button
+      - dialog:
+        - generic:
+          - heading [level=2]: פעולה מהירה
+          - button: ×
+        - generic:
+          - generic:
+            - heading [level=3]: מסמכי הכנסות
+            - list:
+              - listitem:
+                - link:
+                  - /url: /green/documents/new?type=quote
+                  - generic: הצעת מחיר
+                  - generic: ‹
+              - listitem:
+                - link:
+                  - /url: /green/documents/new?type=invoice
+                  - generic: חשבונית
+                  - generic: ‹
+              - listitem:
+                - link:
+                  - /url: /green/documents/new?type=receipt
+                  - generic: קבלה
+                  - generic: ‹
+          - generic:
+            - heading [level=3]: מסמכי ניהול שוטף
+            - list:
+              - listitem:
+                - link:
+                  - /url: /green/documents/new?type=delivery
+                  - generic: תעודת משלוח
+                  - generic: ‹
+  - alert [ref=e407]:
+    - generic [ref=e408]: התזכורת נשלחה ללקוח
+    - button "סגור" [ref=e409] [cursor=pointer]: ✕
+  - alert [ref=e403]

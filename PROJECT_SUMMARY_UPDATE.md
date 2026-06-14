@@ -5,6 +5,52 @@ Read this before starting any task.
 
 ---
 
+## [2026-06-14] Public DB Health Endpoint
+
+FILES:
+- `src/app/api/health/db/route.ts`
+- `PROJECT_SUMMARY_UPDATE.md`
+
+DONE:
+- Added public `GET /api/health/db`.
+- The route does not call `requireSession()` / `requireBusiness()` and is not covered by the dashboard-only middleware matcher, so it does not require login.
+- The route performs a minimal Prisma raw query: `SELECT 1`.
+- On success it returns `200` JSON `{ ok: true }`.
+- On failure it returns `500` JSON `{ ok: false }`.
+- Error details, DB metadata, env vars, user/session data, and table data are never returned.
+- Added `dynamic = "force-dynamic"` so external cron pings execute the DB check instead of using a cached route response.
+
+NOT CHANGED:
+- Prisma schema, migrations, RLS/database policy, auth services, middleware, and existing protected routes.
+
+VERIFICATION:
+- `npm run build` — first sandboxed run failed because Next could not fetch Google Fonts (`EACCES`). Reran with network approval; build passed and route table includes `/api/health/db`.
+- `npm test` — 6/6 suites, 62/62 tests pass.
+- Deployed URL check on 2026-06-14:
+  - `https://liorsw.com/api/health/db` — `404 Not Found`.
+  - `https://liorsw.com/green/api/health/db` — `404 Not Found`.
+- The deployed checks indicate the new route is not deployed to production yet.
+
+---
+
+## [2026-05-10] Documents List - Payment Date Column
+
+FILES:
+- `src/app/(dashboard)/documents/page.tsx`
+- `PROJECT_SUMMARY_UPDATE.md`
+
+DONE:
+- Added a new `מועד תשלום` column to the desktop documents list table between `תאריך` and `סה״כ`.
+- The cell value renders from `document.eventDate` and uses the existing shared `formatDate()` helper.
+- When `eventDate` is missing, the table shows `—`.
+- Confirmed no query/API/schema change was needed because the existing `listDocuments()` query already returns `eventDate`.
+
+VERIFICATION:
+- `npm run build` - failed twice in this environment with `EPERM: operation not permitted, rename ... node_modules/.prisma/client/query_engine-windows.dll.node`. The failure happens during `prisma generate` before `next build`.
+- `npm test` - passed (`6/6` suites, `62/62` tests).
+
+---
+
 ## [2026-04-29] Configurable Approval WhatsApp Template In Business Settings
 
 FILES:

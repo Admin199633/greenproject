@@ -8,7 +8,9 @@ import {
   buildDocumentEmailText,
   buildPublicDocumentPdfPath,
   formatDocumentTotal,
+  getDocumentTypeLabel,
 } from "@/lib/documents/delivery";
+import { formatDate } from "@/lib/utils";
 import { buildApprovalUrl } from "@/lib/documents/approval";
 import { createPublicPdfToken } from "@/lib/documents/public-pdf";
 import { renderDocumentPdf } from "@/lib/pdf/document-pdf";
@@ -234,4 +236,84 @@ export async function sendDocumentEmail(
     to: delivered,
     attachedPdf: Boolean(attachment),
   };
+}
+
+function sanitizeSubjectFragment(value: string) {
+  return value.replace(/[\r\n]+/g, " ").trim();
+}
+
+export async function sendPaymentReminderEmail(
+  documentId: string,
+  businessId: string
+): Promise<{ sent: boolean; to: string; stub: boolean }> {
+  const document = await getDocumentById(documentId, businessId);
+  if (!document) {
+    throw new Error("Document not found");
+  }
+
+  const customerEmail =
+    document.customerEmail?.trim() || document.customer.email?.trim() || null;
+  if (!customerEmail) {
+    throw new Error("Customer has no email address");
+  }
+
+  const business = await db.business.findUniqueOrThrow({
+    where: { id: businessId },
+  });
+
+  const documentNumber = document.number ?? document.id;
+  const customerName = getCustomerDisplayName(document);
+  const documentTypeLabel = getDocumentTypeLabel(document.type);
+  const paymentDate = document.eventDate
+    ? formatDate(document.eventDate)
+    : "—";
+  const amountSourceRaw =
+    document.amountDue && Number(document.amountDue) > 0
+      ? document.amountDue
+      : document.totalAmount;
+  const amountFormatted = formatDocumentTotal(
+    amountSourceRaw.toString(),
+    document.currency
+  );
+
+  const subject = sanitizeSubjectFragment(
+    `תזכורת תשלום עבור ${documentTypeLabel} ${documentNumber}`
+  );
+  const textBody = [
+    `שלום ${customerName},`,
+    "",
+    `זוהי תזכורת תשלום עבור ${documentTypeLabel} ${documentNumber}.`,
+    "",
+    `מועד תשלום: ${paymentDate}`,
+    `סכום לתשלום: ${amountFormatted}`,
+    "",
+    "אם יש שאלות, נשמח לעמוד לרשותך.",
+    "",
+    "בברכה,",
+    business.name,
+  ].join("\n");
+
+  const host = process.env.SMTP_HOST?.trim();
+  if (!host) {
+    console.warn(
+      "[documents:reminder] SMTP not configured — stubbing reminder send",
+      { documentId, to: customerEmail }
+    );
+    return { sent: true, to: customerEmail, stub: true };
+  }
+
+  const transport = createTransport();
+  const fromAddress =
+    process.env.SMTP_FROM?.trim() ||
+    business.email?.trim() ||
+    "noreply@example.com";
+
+  await transport.sendMail({
+    from: fromAddress,
+    to: [customerEmail],
+    subject,
+    text: textBody,
+  });
+
+  return { sent: true, to: customerEmail, stub: false };
 }

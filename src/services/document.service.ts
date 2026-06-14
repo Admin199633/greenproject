@@ -275,7 +275,12 @@ export async function listDocuments(
       },
       include: {
         customer: {
-          select: { id: true, fullName: true, companyName: true },
+          select: {
+            id: true,
+            fullName: true,
+            companyName: true,
+            email: true,
+          },
         },
       },
       orderBy: { createdAt: "desc" },
