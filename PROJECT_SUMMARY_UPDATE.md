@@ -5,6 +5,68 @@ Read this before starting any task.
 
 ---
 
+## [2026-06-16] Document Numbering Start Numbers
+
+FILES:
+- `prisma/schema.prisma`
+- `src/lib/validations/business.ts`
+- `src/services/business.service.ts`
+- `src/app/(dashboard)/settings/BusinessSettingsForm.tsx`
+- `src/app/(dashboard)/settings/page.tsx`
+- `src/services/document.service.ts`
+- `src/services/document.service.test.ts`
+- `PROJECT_SUMMARY_UPDATE.md`
+
+DONE:
+- Added separate Business start-number settings for all issued document types:
+  `quoteStartNumber`, `receiptStartNumber`, `invoiceStartNumber`, and
+  `invoiceReceiptStartNumber`, each defaulting to `1`.
+- Kept existing prefix settings as prefix-only values:
+  `quoteNumberPrefix`, `receiptNumberPrefix`, `invoiceNumberPrefix`, and
+  `invoiceReceiptNumberPrefix`.
+- Wired the new start-number fields through business settings validation,
+  `updateBusiness()`, the settings page defaults, and the settings form payload.
+- Reworked the settings form numbering section so each document type has a
+  prefix input and a numeric start-number input.
+- Updated `issueDraft()` numbering so a missing `DocumentCounter` is created
+  with the relevant configured start number. Existing counters still use the
+  same transactional increment path.
+- Added issuance tests covering Quote, Receipt, Invoice, and Invoice Receipt:
+  each starts from its configured start number and the second issued document
+  increments correctly.
+
+BEHAVIOR CHANGED:
+- A business can now set `quoteNumberPrefix = "QUO-"` and
+  `quoteStartNumber = 1165`; the first quote number is `QUO-1165`, then
+  `QUO-1166`, `QUO-1167`, etc.
+- The same prefix/start-number split applies to receipts, invoices, and invoice
+  receipts.
+- Businesses that do not configure start numbers keep the existing fallback:
+  the first counter starts at `1`, so current default output remains
+  `INV-0001`, `REC-0001`, `QUO-0001`, or `INVR-0001`.
+
+NOT CHANGED:
+- `DocumentCounter` remains the source of sequential numbering state.
+- `issueDraft()` still performs counter upsert, document update, payment
+  creation for receipt types, and duplicate-number conflict handling inside the
+  existing DB transaction.
+- The `(businessId, number)` unique constraint, duplicate conflict mapping,
+  issueDraft validation guards, and draft immutability protections are
+  preserved.
+
+VERIFICATION:
+- `npm test` — 6/6 suites, 66/66 tests pass.
+- `npm run build` — passed. Prisma Client regenerated successfully. The build
+  still prints pre-existing non-fatal `DYNAMIC_SERVER_USAGE` notices for
+  report/export API routes that use `headers`.
+
+NOTES:
+- This working copy has no `prisma/migrations` directory, so the Prisma schema
+  was updated directly. The target database still needs the equivalent
+  migration / `prisma db push` before deploying this code.
+
+---
+
 ## [2026-06-14] Public DB Health Endpoint
 
 FILES:

@@ -64,9 +64,14 @@ export default async function SettingsPage() {
               vatRate: Number(business.vatRate) ?? 17,
               currency: business.currency ?? "ILS",
               invoiceNumberPrefix: business.invoiceNumberPrefix ?? "INV-",
+              invoiceStartNumber: business.invoiceStartNumber ?? 1,
               receiptNumberPrefix: business.receiptNumberPrefix ?? "REC-",
+              receiptStartNumber: business.receiptStartNumber ?? 1,
               quoteNumberPrefix: business.quoteNumberPrefix ?? "QUO-",
+              quoteStartNumber: business.quoteStartNumber ?? 1,
               invoiceReceiptNumberPrefix: business.invoiceReceiptNumberPrefix ?? "INVR-",
+              invoiceReceiptStartNumber:
+                business.invoiceReceiptStartNumber ?? 1,
               sendIssueNotificationEmail: business.sendIssueNotificationEmail ?? false,
               quoteTermsText: business.quoteTermsText,
               approvalWhatsappMessageTemplate:

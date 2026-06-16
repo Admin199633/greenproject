@@ -62,6 +62,8 @@ function snapshotCustomerName(customer: {
   return customer.companyName || customer.fullName || "";
 }
 
+const DEFAULT_START_NUMBER = 1;
+
 const DEFAULT_NUMBER_PREFIX: Record<DocumentType, string> = {
   QUOTE: "QUO-",
   INVOICE: "INV-",
@@ -70,15 +72,18 @@ const DEFAULT_NUMBER_PREFIX: Record<DocumentType, string> = {
   CREDIT_NOTE: "CN-",
 };
 
-function getDocumentPrefix(
-  type: DocumentType,
-  business: {
-    invoiceNumberPrefix?: string | null;
-    receiptNumberPrefix?: string | null;
-    quoteNumberPrefix?: string | null;
-    invoiceReceiptNumberPrefix?: string | null;
-  }
-) {
+type BusinessNumberingSettings = {
+  invoiceNumberPrefix?: string | null;
+  invoiceStartNumber?: number | null;
+  receiptNumberPrefix?: string | null;
+  receiptStartNumber?: number | null;
+  quoteNumberPrefix?: string | null;
+  quoteStartNumber?: number | null;
+  invoiceReceiptNumberPrefix?: string | null;
+  invoiceReceiptStartNumber?: number | null;
+};
+
+function getDocumentPrefix(type: DocumentType, business: BusinessNumberingSettings) {
   switch (type) {
     case DocumentType.INVOICE:
       return business.invoiceNumberPrefix || DEFAULT_NUMBER_PREFIX.INVOICE;
@@ -90,6 +95,30 @@ function getDocumentPrefix(
       return business.invoiceReceiptNumberPrefix || DEFAULT_NUMBER_PREFIX.INVOICE_RECEIPT;
     case DocumentType.CREDIT_NOTE:
       return DEFAULT_NUMBER_PREFIX.CREDIT_NOTE;
+  }
+}
+
+function normalizeStartNumber(value?: number | null) {
+  return typeof value === "number" && Number.isInteger(value) && value > 0
+    ? value
+    : DEFAULT_START_NUMBER;
+}
+
+function getDocumentStartNumber(
+  type: DocumentType,
+  business: BusinessNumberingSettings
+) {
+  switch (type) {
+    case DocumentType.INVOICE:
+      return normalizeStartNumber(business.invoiceStartNumber);
+    case DocumentType.RECEIPT:
+      return normalizeStartNumber(business.receiptStartNumber);
+    case DocumentType.QUOTE:
+      return normalizeStartNumber(business.quoteStartNumber);
+    case DocumentType.INVOICE_RECEIPT:
+      return normalizeStartNumber(business.invoiceReceiptStartNumber);
+    case DocumentType.CREDIT_NOTE:
+      return DEFAULT_START_NUMBER;
   }
 }
 
@@ -507,7 +536,11 @@ export async function issueDraft(
 
       const counter = await tx.documentCounter.upsert({
         where: { businessId_type: { businessId, type: doc.type } },
-        create: { businessId, type: doc.type, lastNumber: 1 },
+        create: {
+          businessId,
+          type: doc.type,
+          lastNumber: getDocumentStartNumber(doc.type, business),
+        },
         update: { lastNumber: { increment: 1 } },
       });
       const number = formatDocumentNumber(

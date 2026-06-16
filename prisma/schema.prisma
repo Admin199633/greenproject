@@ -51,9 +51,13 @@ model Business {
   vatRate     Decimal  @db.Decimal(5, 2) @default(17)
   currency    String   @default("ILS")
   invoiceNumberPrefix        String @default("INV-")
+  invoiceStartNumber         Int    @default(1)
   receiptNumberPrefix        String @default("REC-")
+  receiptStartNumber         Int    @default(1)
   quoteNumberPrefix          String @default("QUO-")
+  quoteStartNumber           Int    @default(1)
   invoiceReceiptNumberPrefix String @default("INVR-")
+  invoiceReceiptStartNumber  Int    @default(1)
   /// Send a notification email to business.email when a document is issued
   sendIssueNotificationEmail Boolean @default(false)
   /// Default "small print" / terms text copied into every new QUOTE at creation time

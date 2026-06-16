@@ -35,10 +35,14 @@ export async function updateBusiness(
       vatRate: data.vatRate ?? 17,
       currency: data.currency?.trim() || "ILS",
       invoiceNumberPrefix: data.invoiceNumberPrefix?.trim() || "INV-",
+      invoiceStartNumber: data.invoiceStartNumber ?? 1,
       receiptNumberPrefix: data.receiptNumberPrefix?.trim() || "REC-",
+      receiptStartNumber: data.receiptStartNumber ?? 1,
       quoteNumberPrefix: data.quoteNumberPrefix?.trim() || "QUO-",
+      quoteStartNumber: data.quoteStartNumber ?? 1,
       invoiceReceiptNumberPrefix:
         data.invoiceReceiptNumberPrefix?.trim() || "INVR-",
+      invoiceReceiptStartNumber: data.invoiceReceiptStartNumber ?? 1,
       sendIssueNotificationEmail: data.sendIssueNotificationEmail ?? false,
       quoteTermsText: data.quoteTermsText?.trim() || null,
       approvalWhatsappMessageTemplate:

@@ -22,9 +22,13 @@ interface Props {
     vatRate?: number | null;
     currency?: string | null;
     invoiceNumberPrefix?: string | null;
+    invoiceStartNumber?: number | null;
     receiptNumberPrefix?: string | null;
+    receiptStartNumber?: number | null;
     quoteNumberPrefix?: string | null;
+    quoteStartNumber?: number | null;
     invoiceReceiptNumberPrefix?: string | null;
+    invoiceReceiptStartNumber?: number | null;
     sendIssueNotificationEmail?: boolean | null;
     quoteTermsText?: string | null;
     approvalWhatsappMessageTemplate?: string | null;
@@ -87,6 +91,11 @@ export default function BusinessSettingsForm({ defaultValues }: Props) {
     const getCheckbox = (name: string) =>
       (form.elements.namedItem(name) as HTMLInputElement)?.checked ?? false;
 
+    const getNumber = (name: string, fallback: number) => {
+      const value = get(name).trim();
+      return value === "" ? fallback : Number(value);
+    };
+
     const data: BusinessFormValues = {
       name: get("name"),
       taxId: get("taxId"),
@@ -101,9 +110,13 @@ export default function BusinessSettingsForm({ defaultValues }: Props) {
       vatRate: Number(get("vatRate")) || 17,
       currency: get("currency"),
       invoiceNumberPrefix: get("invoiceNumberPrefix"),
+      invoiceStartNumber: getNumber("invoiceStartNumber", 1),
       receiptNumberPrefix: get("receiptNumberPrefix"),
+      receiptStartNumber: getNumber("receiptStartNumber", 1),
       quoteNumberPrefix: get("quoteNumberPrefix"),
+      quoteStartNumber: getNumber("quoteStartNumber", 1),
       invoiceReceiptNumberPrefix: get("invoiceReceiptNumberPrefix"),
+      invoiceReceiptStartNumber: getNumber("invoiceReceiptStartNumber", 1),
       sendIssueNotificationEmail: getCheckbox("sendIssueNotificationEmail"),
       quoteTermsText: get("quoteTermsText"),
       approvalWhatsappMessageTemplate: get("approvalWhatsappMessageTemplate"),
@@ -243,14 +256,42 @@ export default function BusinessSettingsForm({ defaultValues }: Props) {
         </div>
       </div>
 
-      {/* Number prefixes */}
+      {/* Document numbering */}
       <div className="space-y-4">
-        <h3 className="text-sm font-semibold text-slate-700 border-b pb-1">קידומות מספור</h3>
-        <div className="grid grid-cols-2 gap-4">
-          {field("invoiceNumberPrefix", "חשבונית", { placeholder: "INV-" })}
-          {field("receiptNumberPrefix", "קבלה", { placeholder: "REC-" })}
-          {field("quoteNumberPrefix", "הצעת מחיר", { placeholder: "QUO-" })}
-          {field("invoiceReceiptNumberPrefix", "חשבונית קבלה", { placeholder: "INVR-" })}
+        <h3 className="text-sm font-semibold text-slate-700 border-b pb-1">מספור מסמכים</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {field("invoiceNumberPrefix", "קידומת חשבונית", { placeholder: "INV-" })}
+          {field("invoiceStartNumber", "מספר התחלתי לחשבונית", {
+            type: "number",
+            inputMode: "numeric",
+            min: "1",
+            step: "1",
+            placeholder: "1",
+          })}
+          {field("receiptNumberPrefix", "קידומת קבלה", { placeholder: "REC-" })}
+          {field("receiptStartNumber", "מספר התחלתי לקבלה", {
+            type: "number",
+            inputMode: "numeric",
+            min: "1",
+            step: "1",
+            placeholder: "1",
+          })}
+          {field("quoteNumberPrefix", "קידומת הצעת מחיר", { placeholder: "QUO-" })}
+          {field("quoteStartNumber", "מספר התחלתי להצעת מחיר", {
+            type: "number",
+            inputMode: "numeric",
+            min: "1",
+            step: "1",
+            placeholder: "1",
+          })}
+          {field("invoiceReceiptNumberPrefix", "קידומת חשבונית קבלה", { placeholder: "INVR-" })}
+          {field("invoiceReceiptStartNumber", "מספר התחלתי לחשבונית קבלה", {
+            type: "number",
+            inputMode: "numeric",
+            min: "1",
+            step: "1",
+            placeholder: "1",
+          })}
         </div>
       </div>
 

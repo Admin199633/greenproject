@@ -1,4 +1,4 @@
-import { Prisma } from "@prisma/client";
+import { DocumentType, Prisma } from "@prisma/client";
 import { buildCustomer, decimal } from "@/test-utils/factories";
 import { mockDb, resetMockDb } from "@/test-utils/mockDb";
 
@@ -66,6 +66,37 @@ const mockDocTotals = {
   taxAmount: decimal("17"),
   totalAmount: decimal("117"),
 };
+
+function buildIssuableDocument(type: DocumentType, id = "doc-1") {
+  const isReceipt =
+    type === DocumentType.RECEIPT || type === DocumentType.INVOICE_RECEIPT;
+
+  return {
+    id,
+    customerId: "cust-1",
+    type,
+    status: "DRAFT",
+    issueDate: new Date("2026-04-09"),
+    dueDate: null,
+    items: [mockItem],
+    ...mockDocTotals,
+    vatRateSnapshot: decimal("17"),
+    receiptAmountReceived: isReceipt ? decimal("117") : null,
+    receiptPaymentMethod: isReceipt ? "cash" : null,
+    receiptPaymentReference: null,
+    receiptCheckNumber: null,
+    receiptCheckBank: null,
+    receiptCheckBranch: null,
+    receiptCheckAccount: null,
+    receiptCheckDueDate: null,
+    customer: {
+      ...buildCustomer(),
+      email: null,
+      address: null,
+      taxId: null,
+    },
+  };
+}
 
 describe("document.service", () => {
   beforeEach(() => {
@@ -159,6 +190,11 @@ describe("document.service", () => {
       await issueDraft("doc-1", "biz-1", "user-1");
 
       expect(tx.documentCounter.upsert).toHaveBeenCalledTimes(1);
+      expect(tx.documentCounter.upsert).toHaveBeenCalledWith({
+        where: { businessId_type: { businessId: "biz-1", type: "INVOICE" } },
+        create: { businessId: "biz-1", type: "INVOICE", lastNumber: 1 },
+        update: { lastNumber: { increment: 1 } },
+      });
       expect(tx.document.update).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { id: "doc-1" },
@@ -226,6 +262,85 @@ describe("document.service", () => {
         })
       );
     });
+
+    it.each([
+      [DocumentType.QUOTE, "quoteStartNumber", "QUO-", 1165],
+      [DocumentType.RECEIPT, "receiptStartNumber", "REC-", 2165],
+      [DocumentType.INVOICE, "invoiceStartNumber", "INV-", 3165],
+      [
+        DocumentType.INVOICE_RECEIPT,
+        "invoiceReceiptStartNumber",
+        "INVR-",
+        4165,
+      ],
+    ] as const)(
+      "%s starts from the configured start number and increments the next issued document",
+      async (type, startField, prefix, startNumber) => {
+        const tx = {
+          document: {
+            findUniqueOrThrow: jest.fn().mockResolvedValue({ status: "DRAFT" }),
+            update: jest.fn().mockImplementation(({ data }) =>
+              Promise.resolve({
+                id: data.number ? "issued-doc" : "paid-doc",
+                status: data.status,
+                number: data.number,
+              })
+            ),
+          },
+          documentCounter: {
+            upsert: jest
+              .fn()
+              .mockResolvedValueOnce({ lastNumber: startNumber })
+              .mockResolvedValueOnce({ lastNumber: startNumber + 1 }),
+          },
+          payment: {
+            create: jest.fn().mockResolvedValue({ id: "payment-1" }),
+          },
+        };
+
+        mockDb.document.findFirst
+          .mockResolvedValueOnce(buildIssuableDocument(type, "doc-1"))
+          .mockResolvedValueOnce(buildIssuableDocument(type, "doc-2"));
+        mockDb.business.findUniqueOrThrow.mockResolvedValue({
+          id: "biz-1",
+          name: "Green Biz",
+          taxId: "515151",
+          address: "Haifa",
+          taxType: "osek_murshe",
+          invoiceNumberPrefix: "INV-",
+          receiptNumberPrefix: "REC-",
+          quoteNumberPrefix: "QUO-",
+          invoiceReceiptNumberPrefix: "INVR-",
+          [startField]: startNumber,
+        });
+        mockDb.$transaction.mockImplementation(async (callback) =>
+          callback(tx as never)
+        );
+
+        await issueDraft("doc-1", "biz-1", "user-1");
+        await issueDraft("doc-2", "biz-1", "user-1");
+
+        expect(tx.documentCounter.upsert).toHaveBeenNthCalledWith(1, {
+          where: { businessId_type: { businessId: "biz-1", type } },
+          create: { businessId: "biz-1", type, lastNumber: startNumber },
+          update: { lastNumber: { increment: 1 } },
+        });
+        expect(tx.documentCounter.upsert).toHaveBeenNthCalledWith(2, {
+          where: { businessId_type: { businessId: "biz-1", type } },
+          create: { businessId: "biz-1", type, lastNumber: startNumber },
+          update: { lastNumber: { increment: 1 } },
+        });
+
+        const issuedNumbers = tx.document.update.mock.calls
+          .map(([call]) => call.data.number)
+          .filter(Boolean);
+
+        expect(issuedNumbers).toEqual([
+          `${prefix}${String(startNumber).padStart(4, "0")}`,
+          `${prefix}${String(startNumber + 1).padStart(4, "0")}`,
+        ]);
+      }
+    );
 
     it("cannot issue a non-draft", async () => {
       mockDb.document.findFirst.mockResolvedValue({
