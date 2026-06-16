@@ -6,6 +6,7 @@ import {
   getGoogleOauthEnv,
 } from "@/services/google-calendar.service";
 import { perf } from "@/lib/perf";
+import { normalizeBusinessNumbering } from "@/lib/validations/business";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import BusinessSettingsForm from "./BusinessSettingsForm";
 import SavedItemsManager from "./SavedItemsManager";
@@ -37,6 +38,17 @@ export default async function SettingsPage() {
       business.approvalWhatsappMessageTemplate?.includes("\uFFFD") ?? false,
   });
 
+  const numbering = normalizeBusinessNumbering({
+    invoiceNumberPrefix: business.invoiceNumberPrefix,
+    invoiceStartNumber: business.invoiceStartNumber,
+    receiptNumberPrefix: business.receiptNumberPrefix,
+    receiptStartNumber: business.receiptStartNumber,
+    quoteNumberPrefix: business.quoteNumberPrefix,
+    quoteStartNumber: business.quoteStartNumber,
+    invoiceReceiptNumberPrefix: business.invoiceReceiptNumberPrefix,
+    invoiceReceiptStartNumber: business.invoiceReceiptStartNumber,
+  });
+
   return (
     <div className="max-w-2xl space-y-6">
       <div>
@@ -63,15 +75,14 @@ export default async function SettingsPage() {
               businessType: (business.businessType as "general" | "photography" | "contractor" | "consulting" | "retail" | "other") ?? "general",
               vatRate: Number(business.vatRate) ?? 17,
               currency: business.currency ?? "ILS",
-              invoiceNumberPrefix: business.invoiceNumberPrefix ?? "INV-",
-              invoiceStartNumber: business.invoiceStartNumber ?? 1,
-              receiptNumberPrefix: business.receiptNumberPrefix ?? "REC-",
-              receiptStartNumber: business.receiptStartNumber ?? 1,
-              quoteNumberPrefix: business.quoteNumberPrefix ?? "QUO-",
-              quoteStartNumber: business.quoteStartNumber ?? 1,
-              invoiceReceiptNumberPrefix: business.invoiceReceiptNumberPrefix ?? "INVR-",
-              invoiceReceiptStartNumber:
-                business.invoiceReceiptStartNumber ?? 1,
+              invoiceNumberPrefix: numbering.invoiceNumberPrefix,
+              invoiceStartNumber: numbering.invoiceStartNumber,
+              receiptNumberPrefix: numbering.receiptNumberPrefix,
+              receiptStartNumber: numbering.receiptStartNumber,
+              quoteNumberPrefix: numbering.quoteNumberPrefix,
+              quoteStartNumber: numbering.quoteStartNumber,
+              invoiceReceiptNumberPrefix: numbering.invoiceReceiptNumberPrefix,
+              invoiceReceiptStartNumber: numbering.invoiceReceiptStartNumber,
               sendIssueNotificationEmail: business.sendIssueNotificationEmail ?? false,
               quoteTermsText: business.quoteTermsText,
               approvalWhatsappMessageTemplate:

@@ -274,7 +274,7 @@ describe("document.service", () => {
         4165,
       ],
     ] as const)(
-      "%s starts from the configured start number and increments the next issued document",
+      "%s advances from the configured start number and increments the next issued document",
       async (type, startField, prefix, startNumber) => {
         const tx = {
           document: {
@@ -290,8 +290,8 @@ describe("document.service", () => {
           documentCounter: {
             upsert: jest
               .fn()
-              .mockResolvedValueOnce({ lastNumber: startNumber })
-              .mockResolvedValueOnce({ lastNumber: startNumber + 1 }),
+              .mockResolvedValueOnce({ lastNumber: startNumber + 1 })
+              .mockResolvedValueOnce({ lastNumber: startNumber + 2 }),
           },
           payment: {
             create: jest.fn().mockResolvedValue({ id: "payment-1" }),
@@ -322,12 +322,12 @@ describe("document.service", () => {
 
         expect(tx.documentCounter.upsert).toHaveBeenNthCalledWith(1, {
           where: { businessId_type: { businessId: "biz-1", type } },
-          create: { businessId: "biz-1", type, lastNumber: startNumber },
+          create: { businessId: "biz-1", type, lastNumber: startNumber + 1 },
           update: { lastNumber: { increment: 1 } },
         });
         expect(tx.documentCounter.upsert).toHaveBeenNthCalledWith(2, {
           where: { businessId_type: { businessId: "biz-1", type } },
-          create: { businessId: "biz-1", type, lastNumber: startNumber },
+          create: { businessId: "biz-1", type, lastNumber: startNumber + 1 },
           update: { lastNumber: { increment: 1 } },
         });
 
@@ -336,11 +336,231 @@ describe("document.service", () => {
           .filter(Boolean);
 
         expect(issuedNumbers).toEqual([
-          `${prefix}${String(startNumber).padStart(4, "0")}`,
           `${prefix}${String(startNumber + 1).padStart(4, "0")}`,
+          `${prefix}${String(startNumber + 2).padStart(4, "0")}`,
         ]);
       }
     );
+
+    it.each([
+      [
+        DocumentType.QUOTE,
+        "quoteNumberPrefix",
+        "quoteStartNumber",
+      ],
+      [
+        DocumentType.RECEIPT,
+        "receiptNumberPrefix",
+        "receiptStartNumber",
+      ],
+      [
+        DocumentType.INVOICE,
+        "invoiceNumberPrefix",
+        "invoiceStartNumber",
+      ],
+      [
+        DocumentType.INVOICE_RECEIPT,
+        "invoiceReceiptNumberPrefix",
+        "invoiceReceiptStartNumber",
+      ],
+    ] as const)(
+      "%s treats an empty prefix as plain numeric numbering",
+      async (type, prefixField, startField) => {
+        const tx = {
+          document: {
+            findUniqueOrThrow: jest.fn().mockResolvedValue({ status: "DRAFT" }),
+            update: jest.fn().mockImplementation(({ data }) =>
+              Promise.resolve({
+                id: data.number ? "issued-doc" : "paid-doc",
+                status: data.status,
+                number: data.number,
+              })
+            ),
+          },
+          documentCounter: {
+            upsert: jest
+              .fn()
+              .mockResolvedValueOnce({ lastNumber: 80157 })
+              .mockResolvedValueOnce({ lastNumber: 80158 }),
+            update: jest.fn(),
+          },
+          payment: {
+            create: jest.fn().mockResolvedValue({ id: "payment-1" }),
+          },
+        };
+
+        mockDb.document.findFirst
+          .mockResolvedValueOnce(buildIssuableDocument(type, "doc-1"))
+          .mockResolvedValueOnce(buildIssuableDocument(type, "doc-2"));
+        mockDb.business.findUniqueOrThrow.mockResolvedValue({
+          id: "biz-1",
+          name: "Green Biz",
+          taxId: "515151",
+          address: "Haifa",
+          taxType: "osek_murshe",
+          [prefixField]: "",
+          [startField]: 80156,
+        });
+        mockDb.$transaction.mockImplementation(async (callback) =>
+          callback(tx as never)
+        );
+
+        await issueDraft("doc-1", "biz-1", "user-1");
+        await issueDraft("doc-2", "biz-1", "user-1");
+
+        const issuedNumbers = tx.document.update.mock.calls
+          .map(([call]) => call.data.number)
+          .filter(Boolean);
+
+        expect(issuedNumbers).toEqual(["80157", "80158"]);
+        expect(tx.documentCounter.update).not.toHaveBeenCalled();
+      }
+    );
+
+    it.each([
+      [
+        DocumentType.QUOTE,
+        "quoteNumberPrefix",
+        "quoteStartNumber",
+      ],
+      [
+        DocumentType.RECEIPT,
+        "receiptNumberPrefix",
+        "receiptStartNumber",
+      ],
+      [
+        DocumentType.INVOICE,
+        "invoiceNumberPrefix",
+        "invoiceStartNumber",
+      ],
+      [
+        DocumentType.INVOICE_RECEIPT,
+        "invoiceReceiptNumberPrefix",
+        "invoiceReceiptStartNumber",
+      ],
+    ] as const)(
+      "%s normalizes a numeric-only prefix into the next numeric start",
+      async (type, prefixField, startField) => {
+        const tx = {
+          document: {
+            findUniqueOrThrow: jest.fn().mockResolvedValue({ status: "DRAFT" }),
+            update: jest.fn().mockImplementation(({ data }) =>
+              Promise.resolve({
+                id: data.number ? "issued-doc" : "paid-doc",
+                status: data.status,
+                number: data.number,
+              })
+            ),
+          },
+          documentCounter: {
+            upsert: jest
+              .fn()
+              .mockResolvedValueOnce({ lastNumber: 80157 })
+              .mockResolvedValueOnce({ lastNumber: 80158 }),
+            update: jest.fn(),
+          },
+          payment: {
+            create: jest.fn().mockResolvedValue({ id: "payment-1" }),
+          },
+        };
+
+        mockDb.document.findFirst
+          .mockResolvedValueOnce(buildIssuableDocument(type, "doc-1"))
+          .mockResolvedValueOnce(buildIssuableDocument(type, "doc-2"));
+        mockDb.business.findUniqueOrThrow.mockResolvedValue({
+          id: "biz-1",
+          name: "Green Biz",
+          taxId: "515151",
+          address: "Haifa",
+          taxType: "osek_murshe",
+          [prefixField]: "80156",
+          [startField]: 1,
+        });
+        mockDb.$transaction.mockImplementation(async (callback) =>
+          callback(tx as never)
+        );
+
+        await issueDraft("doc-1", "biz-1", "user-1");
+        await issueDraft("doc-2", "biz-1", "user-1");
+
+        expect(tx.documentCounter.upsert).toHaveBeenNthCalledWith(1, {
+          where: { businessId_type: { businessId: "biz-1", type } },
+          create: { businessId: "biz-1", type, lastNumber: 80157 },
+          update: { lastNumber: { increment: 1 } },
+        });
+
+        const issuedNumbers = tx.document.update.mock.calls
+          .map(([call]) => call.data.number)
+          .filter(Boolean);
+
+        expect(issuedNumbers).toEqual(["80157", "80158"]);
+        expect(issuedNumbers).not.toContain("801560001");
+      }
+    );
+
+    it("does not keep generating 801560001 after a numeric-only receipt prefix left a low counter", async () => {
+      const tx = {
+        document: {
+          findUniqueOrThrow: jest.fn().mockResolvedValue({ status: "DRAFT" }),
+          update: jest.fn().mockImplementation(({ data }) =>
+            Promise.resolve({
+              id: data.number ? "issued-doc" : "paid-doc",
+              status: data.status,
+              number: data.number,
+            })
+          ),
+        },
+        documentCounter: {
+          upsert: jest.fn().mockResolvedValue({ lastNumber: 2 }),
+          update: jest.fn().mockResolvedValue({ lastNumber: 80157 }),
+        },
+        payment: {
+          create: jest.fn().mockResolvedValue({ id: "payment-1" }),
+        },
+      };
+
+      mockDb.document.findFirst.mockResolvedValue(
+        buildIssuableDocument(DocumentType.RECEIPT, "doc-1")
+      );
+      mockDb.business.findUniqueOrThrow.mockResolvedValue({
+        id: "biz-1",
+        name: "Green Biz",
+        taxId: "515151",
+        address: "Haifa",
+        taxType: "osek_murshe",
+        receiptNumberPrefix: "80156",
+        receiptStartNumber: 1,
+      });
+      mockDb.$transaction.mockImplementation(async (callback) =>
+        callback(tx as never)
+      );
+
+      await issueDraft("doc-1", "biz-1", "user-1");
+
+      expect(tx.documentCounter.update).toHaveBeenCalledWith({
+        where: {
+          businessId_type: {
+            businessId: "biz-1",
+            type: DocumentType.RECEIPT,
+          },
+        },
+        data: { lastNumber: 80157 },
+      });
+      expect(tx.document.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            number: "80157",
+          }),
+        })
+      );
+      expect(tx.document.update).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            number: "801560001",
+          }),
+        })
+      );
+    });
 
     it("cannot issue a non-draft", async () => {
       mockDb.document.findFirst.mockResolvedValue({

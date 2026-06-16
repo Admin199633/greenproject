@@ -14,6 +14,10 @@ import {
   buildOwnerApprovalRedirectWhatsappMessage,
   buildWhatsappShareUrl,
 } from "@/lib/documents/delivery";
+import {
+  DEFAULT_DOCUMENT_START_NUMBER,
+  normalizeBusinessNumbering,
+} from "@/lib/validations/business";
 
 type Tx = Prisma.TransactionClient;
 
@@ -62,15 +66,7 @@ function snapshotCustomerName(customer: {
   return customer.companyName || customer.fullName || "";
 }
 
-const DEFAULT_START_NUMBER = 1;
-
-const DEFAULT_NUMBER_PREFIX: Record<DocumentType, string> = {
-  QUOTE: "QUO-",
-  INVOICE: "INV-",
-  RECEIPT: "REC-",
-  INVOICE_RECEIPT: "INVR-",
-  CREDIT_NOTE: "CN-",
-};
+const CREDIT_NOTE_NUMBER_PREFIX = "CN-";
 
 type BusinessNumberingSettings = {
   invoiceNumberPrefix?: string | null;
@@ -83,47 +79,47 @@ type BusinessNumberingSettings = {
   invoiceReceiptStartNumber?: number | null;
 };
 
-function getDocumentPrefix(type: DocumentType, business: BusinessNumberingSettings) {
-  switch (type) {
-    case DocumentType.INVOICE:
-      return business.invoiceNumberPrefix || DEFAULT_NUMBER_PREFIX.INVOICE;
-    case DocumentType.RECEIPT:
-      return business.receiptNumberPrefix || DEFAULT_NUMBER_PREFIX.RECEIPT;
-    case DocumentType.QUOTE:
-      return business.quoteNumberPrefix || DEFAULT_NUMBER_PREFIX.QUOTE;
-    case DocumentType.INVOICE_RECEIPT:
-      return business.invoiceReceiptNumberPrefix || DEFAULT_NUMBER_PREFIX.INVOICE_RECEIPT;
-    case DocumentType.CREDIT_NOTE:
-      return DEFAULT_NUMBER_PREFIX.CREDIT_NOTE;
-  }
-}
-
-function normalizeStartNumber(value?: number | null) {
-  return typeof value === "number" && Number.isInteger(value) && value > 0
-    ? value
-    : DEFAULT_START_NUMBER;
-}
-
-function getDocumentStartNumber(
+function getDocumentNumbering(
   type: DocumentType,
   business: BusinessNumberingSettings
 ) {
+  const numbering = normalizeBusinessNumbering(business);
+
   switch (type) {
     case DocumentType.INVOICE:
-      return normalizeStartNumber(business.invoiceStartNumber);
+      return {
+        prefix: numbering.invoiceNumberPrefix,
+        startNumber: numbering.invoiceStartNumber,
+      };
     case DocumentType.RECEIPT:
-      return normalizeStartNumber(business.receiptStartNumber);
+      return {
+        prefix: numbering.receiptNumberPrefix,
+        startNumber: numbering.receiptStartNumber,
+      };
     case DocumentType.QUOTE:
-      return normalizeStartNumber(business.quoteStartNumber);
+      return {
+        prefix: numbering.quoteNumberPrefix,
+        startNumber: numbering.quoteStartNumber,
+      };
     case DocumentType.INVOICE_RECEIPT:
-      return normalizeStartNumber(business.invoiceReceiptStartNumber);
+      return {
+        prefix: numbering.invoiceReceiptNumberPrefix,
+        startNumber: numbering.invoiceReceiptStartNumber,
+      };
     case DocumentType.CREDIT_NOTE:
-      return DEFAULT_START_NUMBER;
+      return {
+        prefix: CREDIT_NOTE_NUMBER_PREFIX,
+        startNumber: DEFAULT_DOCUMENT_START_NUMBER,
+      };
   }
 }
 
 function formatDocumentNumber(prefix: string, n: number) {
-  return `${prefix}${String(n).padStart(4, "0")}`;
+  return prefix ? `${prefix}${String(n).padStart(4, "0")}` : String(n);
+}
+
+function getNextNumberFromStart(startNumber: number) {
+  return startNumber + 1;
 }
 
 function buildReceiptDraftData(data: SaveDraftInput) {
@@ -534,19 +530,28 @@ export async function issueDraft(
       });
       if (locked.status !== "DRAFT") throw new Error("Only drafts can be issued");
 
+      const numbering = getDocumentNumbering(doc.type, business);
       const counter = await tx.documentCounter.upsert({
         where: { businessId_type: { businessId, type: doc.type } },
         create: {
           businessId,
           type: doc.type,
-          lastNumber: getDocumentStartNumber(doc.type, business),
+          lastNumber: getNextNumberFromStart(numbering.startNumber),
         },
         update: { lastNumber: { increment: 1 } },
       });
-      const number = formatDocumentNumber(
-        getDocumentPrefix(doc.type, business),
-        counter.lastNumber
-      );
+
+      let issuedNumber = counter.lastNumber;
+      const minimumNextNumber = getNextNumberFromStart(numbering.startNumber);
+      if (issuedNumber < minimumNextNumber) {
+        const correctedCounter = await tx.documentCounter.update({
+          where: { businessId_type: { businessId, type: doc.type } },
+          data: { lastNumber: minimumNextNumber },
+        });
+        issuedNumber = correctedCounter.lastNumber;
+      }
+
+      const number = formatDocumentNumber(numbering.prefix, issuedNumber);
 
       const finalIssueDate = doc.issueDate ?? new Date();
       const finalCustomerName = doc.customerName ?? snapshotCustomerName(doc.customer);

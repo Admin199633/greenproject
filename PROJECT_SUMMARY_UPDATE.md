@@ -5,6 +5,126 @@ Read this before starting any task.
 
 ---
 
+## [2026-06-16] Numbering Rule — Numeric Start Advances By One
+
+FILES:
+- `prisma/schema.prisma`
+- `src/lib/validations/business.ts`
+- `src/lib/validations/business.test.ts`
+- `src/services/document.service.ts`
+- `src/services/document.service.test.ts`
+- `src/app/(dashboard)/settings/BusinessSettingsForm.tsx`
+- `PROJECT_SUMMARY_UPDATE.md`
+
+DONE:
+- Updated numbering semantics to match the business rule:
+  a configured numeric start/base value is the current/last number, and the
+  first future generated document uses `startNumber + 1`.
+- Numeric-only prefix values are never treated as prefixes. They are moved into
+  the matching start/base number and the prefix is cleared.
+- Changed `issueDraft()` so a new `DocumentCounter` starts at
+  `startNumber + 1`.
+- Updated the low-counter correction path so existing counters below the
+  configured base are advanced inside the existing issue transaction to
+  `startNumber + 1`.
+- Changed Business start-number Prisma defaults from `1` to `0` so businesses
+  without configured values keep old behavior: first generated number is still
+  `0001` for text-prefixed defaults.
+- Removed client-side full normalization before submit so invalid numeric input
+  is validated by the server schema instead of being silently converted.
+- Updated settings labels to clarify these are text prefixes and numeric base
+  values.
+- Added `businessSchema` tests for:
+  numeric prefix with spaces, numeric prefix with leading zeros, mixed
+  text+numeric prefix (`REC80156`), oversized numeric-only prefix rejection, and
+  negative start-number rejection.
+
+BEHAVIOR CHANGED:
+- `receiptNumberPrefix = "80156"` normalizes to `receiptNumberPrefix = ""`,
+  `receiptStartNumber = 80156`; the first future receipt is `80157`, then
+  `80158`.
+- Empty prefix with `receiptStartNumber = 80156` generates `80157`, then
+  `80158`.
+- Text prefix with `receiptStartNumber = 6` generates `REC-0007`; text prefixes
+  still keep the existing four-digit padding.
+- Mixed values containing non-numeric characters, like `REC80156`, remain text
+  prefixes.
+
+NOT CHANGED:
+- Existing issued documents are not edited or renumbered.
+- `DocumentCounter` remains the source of numbering state.
+- Counter create/update/correction still happens inside the existing
+  `issueDraft()` DB transaction.
+- Unique constraints, duplicate conflict handling, validation guards, and draft
+  immutability remain intact.
+
+VERIFICATION:
+- `npm test` — 7/7 suites, 80/80 tests pass.
+- `npm run build` — passed. Prisma Client regenerated successfully. Build still
+  prints pre-existing non-fatal `DYNAMIC_SERVER_USAGE` notices for report/export
+  API routes that use `headers`.
+
+---
+
+## [2026-06-16] Numeric Prefix Numbering Guard
+
+FILES:
+- `src/lib/validations/business.ts`
+- `src/services/business.service.ts`
+- `src/app/(dashboard)/settings/BusinessSettingsForm.tsx`
+- `src/app/(dashboard)/settings/page.tsx`
+- `src/services/document.service.ts`
+- `src/services/document.service.test.ts`
+- `PROJECT_SUMMARY_UPDATE.md`
+
+DONE:
+- Audited the numbering flow after the start-number implementation:
+  settings form payload, business validation, `updateBusiness()`,
+  `DocumentCounter` creation/update, `formatDocumentNumber()`, and
+  `issueDraft()`.
+- Added shared `normalizeBusinessNumbering()` logic.
+- Prefix fields now allow real text prefixes or an intentionally empty string.
+  Empty prefix is preserved instead of falling back to `REC-` / `INV-` /
+  `QUO-` / `INVR-`.
+- Numeric-only prefix values such as `80156` are normalized to:
+  prefix `""` and start number `80157`.
+- The settings form normalizes before submit, the settings page normalizes
+  legacy DB values before display, and `updateBusiness()` normalizes before
+  persistence.
+- `issueDraft()` also normalizes at issue time so stale numeric-only prefix
+  values already stored in the database cannot generate values like
+  `801560001`.
+- `formatDocumentNumber()` now returns plain numeric strings when prefix is
+  empty. Example: prefix `""`, start `80157` -> `80157`, then `80158`.
+- Inside the existing issue transaction, if an old `DocumentCounter` value is
+  below the normalized start number, the counter is advanced to the start
+  number before assigning the future document number. Existing issued documents
+  are not edited or renumbered.
+
+BEHAVIOR CHANGED:
+- If receipt prefix is set to numeric-only `80156`, the next future receipt is
+  `80157`, not `801560001`.
+- If receipt prefix is empty and `receiptStartNumber = 80157`, the first
+  receipt is `80157`; the next receipt is `80158`.
+- The same numeric-only-prefix protection applies to quote, invoice, receipt,
+  and invoice receipt numbering.
+- Text prefixes still work as before: prefix `REC-`, start `7` -> `REC-0007`.
+
+NOT CHANGED:
+- `DocumentCounter` remains the numbering state source.
+- Counter mutation still happens inside the existing `issueDraft()` DB
+  transaction.
+- Duplicate number conflict handling, unique constraints, issue validation
+  guards, and issued-document immutability remain in place.
+
+VERIFICATION:
+- `npm test` — 6/6 suites, 75/75 tests pass.
+- `npm run build` — passed. Prisma Client regenerated successfully. Build still
+  prints pre-existing non-fatal `DYNAMIC_SERVER_USAGE` notices for report/export
+  API routes that use `headers`.
+
+---
+
 ## [2026-06-16] Document Numbering Start Numbers
 
 FILES:

@@ -1,6 +1,9 @@
 import { db } from "@/lib/db";
 import { perf } from "@/lib/perf";
-import type { BusinessFormValues } from "@/lib/validations/business";
+import {
+  normalizeBusinessNumbering,
+  type BusinessFormValues,
+} from "@/lib/validations/business";
 
 export async function getBusiness(businessId: string) {
   return perf("business.getBusiness", () =>
@@ -12,6 +15,8 @@ export async function updateBusiness(
   businessId: string,
   data: BusinessFormValues
 ) {
+  const numbering = normalizeBusinessNumbering(data);
+
   console.debug("[approval-template] service before prisma update", {
     businessId,
     approvalWhatsappMessageTemplate:
@@ -34,15 +39,14 @@ export async function updateBusiness(
       businessType: data.businessType ?? "general",
       vatRate: data.vatRate ?? 17,
       currency: data.currency?.trim() || "ILS",
-      invoiceNumberPrefix: data.invoiceNumberPrefix?.trim() || "INV-",
-      invoiceStartNumber: data.invoiceStartNumber ?? 1,
-      receiptNumberPrefix: data.receiptNumberPrefix?.trim() || "REC-",
-      receiptStartNumber: data.receiptStartNumber ?? 1,
-      quoteNumberPrefix: data.quoteNumberPrefix?.trim() || "QUO-",
-      quoteStartNumber: data.quoteStartNumber ?? 1,
-      invoiceReceiptNumberPrefix:
-        data.invoiceReceiptNumberPrefix?.trim() || "INVR-",
-      invoiceReceiptStartNumber: data.invoiceReceiptStartNumber ?? 1,
+      invoiceNumberPrefix: numbering.invoiceNumberPrefix,
+      invoiceStartNumber: numbering.invoiceStartNumber,
+      receiptNumberPrefix: numbering.receiptNumberPrefix,
+      receiptStartNumber: numbering.receiptStartNumber,
+      quoteNumberPrefix: numbering.quoteNumberPrefix,
+      quoteStartNumber: numbering.quoteStartNumber,
+      invoiceReceiptNumberPrefix: numbering.invoiceReceiptNumberPrefix,
+      invoiceReceiptStartNumber: numbering.invoiceReceiptStartNumber,
       sendIssueNotificationEmail: data.sendIssueNotificationEmail ?? false,
       quoteTermsText: data.quoteTermsText?.trim() || null,
       approvalWhatsappMessageTemplate:

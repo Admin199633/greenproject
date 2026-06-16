@@ -110,13 +110,13 @@ export default function BusinessSettingsForm({ defaultValues }: Props) {
       vatRate: Number(get("vatRate")) || 17,
       currency: get("currency"),
       invoiceNumberPrefix: get("invoiceNumberPrefix"),
-      invoiceStartNumber: getNumber("invoiceStartNumber", 1),
+      invoiceStartNumber: getNumber("invoiceStartNumber", 0),
       receiptNumberPrefix: get("receiptNumberPrefix"),
-      receiptStartNumber: getNumber("receiptStartNumber", 1),
+      receiptStartNumber: getNumber("receiptStartNumber", 0),
       quoteNumberPrefix: get("quoteNumberPrefix"),
-      quoteStartNumber: getNumber("quoteStartNumber", 1),
+      quoteStartNumber: getNumber("quoteStartNumber", 0),
       invoiceReceiptNumberPrefix: get("invoiceReceiptNumberPrefix"),
-      invoiceReceiptStartNumber: getNumber("invoiceReceiptStartNumber", 1),
+      invoiceReceiptStartNumber: getNumber("invoiceReceiptStartNumber", 0),
       sendIssueNotificationEmail: getCheckbox("sendIssueNotificationEmail"),
       quoteTermsText: get("quoteTermsText"),
       approvalWhatsappMessageTemplate: get("approvalWhatsappMessageTemplate"),
@@ -260,37 +260,37 @@ export default function BusinessSettingsForm({ defaultValues }: Props) {
       <div className="space-y-4">
         <h3 className="text-sm font-semibold text-slate-700 border-b pb-1">מספור מסמכים</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {field("invoiceNumberPrefix", "קידומת חשבונית", { placeholder: "INV-" })}
-          {field("invoiceStartNumber", "מספר התחלתי לחשבונית", {
+          {field("invoiceNumberPrefix", "קידומת טקסט לחשבונית", { placeholder: "INV-" })}
+          {field("invoiceStartNumber", "מספר בסיס לחשבונית", {
             type: "number",
             inputMode: "numeric",
-            min: "1",
+            min: "0",
             step: "1",
-            placeholder: "1",
+            placeholder: "0",
           })}
-          {field("receiptNumberPrefix", "קידומת קבלה", { placeholder: "REC-" })}
-          {field("receiptStartNumber", "מספר התחלתי לקבלה", {
+          {field("receiptNumberPrefix", "קידומת טקסט לקבלה", { placeholder: "REC-" })}
+          {field("receiptStartNumber", "מספר בסיס לקבלה", {
             type: "number",
             inputMode: "numeric",
-            min: "1",
+            min: "0",
             step: "1",
-            placeholder: "1",
+            placeholder: "0",
           })}
-          {field("quoteNumberPrefix", "קידומת הצעת מחיר", { placeholder: "QUO-" })}
-          {field("quoteStartNumber", "מספר התחלתי להצעת מחיר", {
+          {field("quoteNumberPrefix", "קידומת טקסט להצעת מחיר", { placeholder: "QUO-" })}
+          {field("quoteStartNumber", "מספר בסיס להצעת מחיר", {
             type: "number",
             inputMode: "numeric",
-            min: "1",
+            min: "0",
             step: "1",
-            placeholder: "1",
+            placeholder: "0",
           })}
-          {field("invoiceReceiptNumberPrefix", "קידומת חשבונית קבלה", { placeholder: "INVR-" })}
-          {field("invoiceReceiptStartNumber", "מספר התחלתי לחשבונית קבלה", {
+          {field("invoiceReceiptNumberPrefix", "קידומת טקסט לחשבונית קבלה", { placeholder: "INVR-" })}
+          {field("invoiceReceiptStartNumber", "מספר בסיס לחשבונית קבלה", {
             type: "number",
             inputMode: "numeric",
-            min: "1",
+            min: "0",
             step: "1",
-            placeholder: "1",
+            placeholder: "0",
           })}
         </div>
       </div>
