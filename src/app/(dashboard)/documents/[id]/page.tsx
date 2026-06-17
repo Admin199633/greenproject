@@ -53,7 +53,14 @@ export default async function DocumentDetailPage({ params }: PageProps) {
   });
 
   const isDraft = doc.status === "DRAFT";
-  const canCancelDocument = doc.status === "ISSUED" && doc.amountPaid.eq(0);
+  const canCancelDocument =
+    (doc.type === "QUOTE" ||
+      doc.type === "RECEIPT" ||
+      doc.type === "INVOICE" ||
+      doc.type === "INVOICE_RECEIPT") &&
+    (doc.status === "ISSUED" ||
+      doc.status === "PARTIALLY_PAID" ||
+      doc.status === "PAID");
   const canCreateCreditNote =
     !doc.sourceDocument &&
     !doc.creditNote &&
@@ -61,7 +68,7 @@ export default async function DocumentDetailPage({ params }: PageProps) {
     (doc.status === "ISSUED" ||
       doc.status === "PARTIALLY_PAID" ||
       doc.status === "PAID");
-  const canDownloadPdf = !isDraft && doc.status !== "CANCELLED" && Boolean(doc.issuedHash);
+  const canDownloadPdf = !isDraft && Boolean(doc.issuedHash);
   const canCreateFromQuote = doc.type === "QUOTE" && doc.status === "ISSUED";
   const supportsInvoiceReceipt = business.taxType !== "osek_patur";
   const publicPdfToken = doc.issuedHash
@@ -450,7 +457,9 @@ export default async function DocumentDetailPage({ params }: PageProps) {
                         {payment.reference ?? "—"}
                       </TableCell>
                       <TableCell className="text-center">
-                        <DeletePaymentButton paymentId={payment.id} />
+                        {doc.status !== "CANCELLED" ? (
+                          <DeletePaymentButton paymentId={payment.id} />
+                        ) : null}
                       </TableCell>
                     </TableRow>
                   ))}

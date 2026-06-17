@@ -175,6 +175,22 @@ const styles = StyleSheet.create({
     textAlign: "right",
     lineHeight: 1.4,
   },
+  cancelledMark: {
+    marginTop: 8,
+    alignSelf: "flex-end",
+    borderWidth: 1,
+    borderColor: "#dc2626",
+    backgroundColor: "#fef2f2",
+    borderRadius: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  cancelledMarkText: {
+    color: "#b91c1c",
+    fontSize: 12,
+    fontWeight: 700,
+    textAlign: "center",
+  },
   businessName: {
     fontSize: 14,
     fontWeight: 700,
@@ -425,6 +441,21 @@ const quote = StyleSheet.create({
   heroMetaStrong: {
     color: INK,
     fontWeight: 700,
+  },
+  cancelledMark: {
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: "#dc2626",
+    backgroundColor: "#fef2f2",
+    borderRadius: 4,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+  },
+  cancelledMarkText: {
+    color: "#b91c1c",
+    fontSize: 12,
+    fontWeight: 700,
+    textAlign: "center",
   },
   // Thin brand rule under the header
   rule: {
@@ -854,6 +885,11 @@ function QuotePage({ business, document }: BuildPdfInput) {
             <Text style={quote.heroMetaStrong}>{docNumber}</Text>
           </Text>
           <Text style={quote.heroMeta}>{issueDate}</Text>
+          {document.status === "CANCELLED" ? (
+            <View style={quote.cancelledMark}>
+              <Text style={quote.cancelledMarkText}>מבוטל / CANCELLED</Text>
+            </View>
+          ) : null}
         </View>
       </View>
 
@@ -1064,6 +1100,11 @@ function LegacyPage({ business, document }: BuildPdfInput) {
             {document.number ?? document.id}
           </Text>
           <Text style={styles.subtle}>{statusLabel}</Text>
+          {document.status === "CANCELLED" ? (
+            <View style={styles.cancelledMark}>
+              <Text style={styles.cancelledMarkText}>מבוטל / CANCELLED</Text>
+            </View>
+          ) : null}
           <Text style={[styles.subtle, { marginTop: 4 }]}>
             {formatDate(document.issueDate)}
           </Text>

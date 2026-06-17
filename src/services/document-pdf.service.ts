@@ -1,6 +1,11 @@
 import { PAYMENT_METHODS } from "@/lib/validations/payment";
 
-const PDF_ALLOWED_STATUSES = new Set(["ISSUED", "PARTIALLY_PAID", "PAID"]);
+const PDF_ALLOWED_STATUSES = new Set([
+  "ISSUED",
+  "PARTIALLY_PAID",
+  "PAID",
+  "CANCELLED",
+]);
 
 export function buildDocumentPdfFilename(number: string | null, id: string) {
   const safeBase = (number ?? id).replace(/[^A-Za-z0-9_-]/g, "-");
@@ -14,10 +19,6 @@ export function assertDocumentPdfAllowed(document: {
 }) {
   if (document.status === "DRAFT") {
     throw new Error("DRAFT_PDF_NOT_ALLOWED");
-  }
-
-  if (document.status === "CANCELLED") {
-    throw new Error("CANCELLED_PDF_NOT_ALLOWED");
   }
 
   if (!PDF_ALLOWED_STATUSES.has(document.status)) {

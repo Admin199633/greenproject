@@ -155,18 +155,42 @@ export async function createPayment(
 }
 
 export async function deletePayment(id: string, businessId: string) {
-  const payment = await db.payment.findFirst({
-    where: { id, businessId },
-  });
-  if (!payment) throw new Error("Payment not found");
+  return db.$transaction(async (tx) => {
+    const payment = await tx.payment.findFirst({
+      where: { id, businessId },
+      include: {
+        document: {
+          select: {
+            businessId: true,
+            status: true,
+          },
+        },
+      },
+    });
 
-  const { documentId } = payment;
+    if (!payment || payment.document.businessId !== businessId) {
+      throw new Error("Payment not found");
+    }
+    if (payment.document.status === DocumentStatus.CANCELLED) {
+      throw new Error("Cannot delete payment from a cancelled document");
+    }
 
-  await db.$transaction(async (tx) => {
+    const mutableDocument = await tx.document.updateMany({
+      where: {
+        id: payment.documentId,
+        businessId,
+        status: { not: DocumentStatus.CANCELLED },
+      },
+      data: { status: payment.document.status },
+    });
+    if (mutableDocument.count !== 1) {
+      throw new Error("Cannot delete payment from a cancelled document");
+    }
+
     await tx.payment.delete({ where: { id } });
-    await recalculateDocumentStatus(tx, documentId);
-  });
+    await recalculateDocumentStatus(tx, payment.documentId);
 
-  // Return payment snapshot for audit logging
-  return payment;
+    // Return payment snapshot for audit logging
+    return payment;
+  });
 }

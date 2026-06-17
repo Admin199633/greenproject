@@ -67,6 +67,17 @@ function snapshotCustomerName(customer: {
 }
 
 const CREDIT_NOTE_NUMBER_PREFIX = "CN-";
+const CANCELLABLE_DOCUMENT_TYPES = new Set<DocumentType>([
+  DocumentType.QUOTE,
+  DocumentType.RECEIPT,
+  DocumentType.INVOICE,
+  DocumentType.INVOICE_RECEIPT,
+]);
+const CANCELLABLE_DOCUMENT_STATUSES = new Set<DocumentStatus>([
+  DocumentStatus.ISSUED,
+  DocumentStatus.PARTIALLY_PAID,
+  DocumentStatus.PAID,
+]);
 
 type BusinessNumberingSettings = {
   invoiceNumberPrefix?: string | null;
@@ -116,6 +127,24 @@ function getDocumentNumbering(
 
 function formatDocumentNumber(prefix: string, n: number) {
   return prefix ? `${prefix}${String(n).padStart(4, "0")}` : String(n);
+}
+
+function assertDocumentCanBeCancelled(document: {
+  type: DocumentType;
+  status: DocumentStatus;
+}) {
+  if (!CANCELLABLE_DOCUMENT_TYPES.has(document.type)) {
+    throw new Error("Document type cannot be cancelled");
+  }
+  if (document.status === DocumentStatus.DRAFT) {
+    throw new Error("Draft documents cannot be cancelled");
+  }
+  if (document.status === DocumentStatus.CANCELLED) {
+    throw new Error("Document is already cancelled");
+  }
+  if (!CANCELLABLE_DOCUMENT_STATUSES.has(document.status)) {
+    throw new Error("Only issued documents can be cancelled");
+  }
 }
 
 function getNextNumberFromStart(startNumber: number) {
@@ -663,33 +692,20 @@ export async function issueDraft(
 export async function cancelDocument(id: string, businessId: string) {
   const doc = await db.document.findFirst({
     where: { id, businessId },
-    select: { status: true, amountPaid: true },
+    select: { type: true, status: true },
   });
 
   if (!doc) throw new Error("Document not found");
-  if (doc.status === "DRAFT") throw new Error("Draft documents cannot be cancelled");
-  if (doc.status === "PARTIALLY_PAID") {
-    throw new Error("Partially paid documents cannot be cancelled");
-  }
-  if (doc.status === "PAID") throw new Error("Paid documents cannot be cancelled");
-  if (doc.status === "CANCELLED") throw new Error("Document is already cancelled");
-  if (doc.status !== "ISSUED") throw new Error("Only issued documents can be cancelled");
-  if (doc.amountPaid.gt(0)) throw new Error("Documents with payments cannot be cancelled");
+  assertDocumentCanBeCancelled(doc);
 
   return db.$transaction(async (tx) => {
     const locked = await tx.document.findUniqueOrThrow({
       where: { id },
-      select: { status: true, amountPaid: true },
+      select: { businessId: true, type: true, status: true },
     });
 
-    if (locked.status === "DRAFT") throw new Error("Draft documents cannot be cancelled");
-    if (locked.status === "PARTIALLY_PAID") {
-      throw new Error("Partially paid documents cannot be cancelled");
-    }
-    if (locked.status === "PAID") throw new Error("Paid documents cannot be cancelled");
-    if (locked.status === "CANCELLED") throw new Error("Document is already cancelled");
-    if (locked.status !== "ISSUED") throw new Error("Only issued documents can be cancelled");
-    if (locked.amountPaid.gt(0)) throw new Error("Documents with payments cannot be cancelled");
+    if (locked.businessId !== businessId) throw new Error("Document not found");
+    assertDocumentCanBeCancelled(locked);
 
     return tx.document.update({
       where: { id },
@@ -788,10 +804,7 @@ export async function createDocumentFromQuote(
 ) {
   const source = await db.document.findFirst({
     where: { id, businessId },
-    include: {
-      items: { orderBy: { lineIndex: "asc" } },
-      customer: true,
-    },
+    select: { type: true, status: true },
   });
 
   if (!source) throw new Error("Document not found");
@@ -803,32 +816,47 @@ export async function createDocumentFromQuote(
   }
 
   return db.$transaction(async (tx) => {
+    const locked = await tx.document.findUniqueOrThrow({
+      where: { id },
+      include: {
+        items: { orderBy: { lineIndex: "asc" } },
+      },
+    });
+
+    if (locked.businessId !== businessId) throw new Error("Document not found");
+    if (locked.type !== DocumentType.QUOTE) {
+      throw new Error("Only quotes can create follow-up documents");
+    }
+    if (locked.status !== DocumentStatus.ISSUED) {
+      throw new Error("Only issued quotes can create follow-up documents");
+    }
+
     const draft = await tx.document.create({
       data: {
         businessId,
-        customerId: source.customerId,
+        customerId: locked.customerId,
         type: targetType,
         status: DocumentStatus.DRAFT,
         number: null,
         issueDate: new Date(),
-        dueDate: targetType === "RECEIPT" ? new Date() : source.dueDate,
-        notes: source.notes,
-        internalNotes: source.internalNotes,
-        currency: source.currency,
-        isTaxInclusive: source.isTaxInclusive,
-        vatRateSnapshot: source.vatRateSnapshot,
-        subtotalAmount: source.subtotalAmount,
-        taxAmount: source.taxAmount,
-        totalAmount: source.totalAmount,
+        dueDate: targetType === "RECEIPT" ? new Date() : locked.dueDate,
+        notes: locked.notes,
+        internalNotes: locked.internalNotes,
+        currency: locked.currency,
+        isTaxInclusive: locked.isTaxInclusive,
+        vatRateSnapshot: locked.vatRateSnapshot,
+        subtotalAmount: locked.subtotalAmount,
+        taxAmount: locked.taxAmount,
+        totalAmount: locked.totalAmount,
         amountPaid: "0",
-        amountDue: source.totalAmount,
-        eventDate: source.eventDate,
-        eventLocation: source.eventLocation,
-        eventHours: source.eventHours,
-        eventTime: source.eventTime,
+        amountDue: locked.totalAmount,
+        eventDate: locked.eventDate,
+        eventLocation: locked.eventLocation,
+        eventHours: locked.eventHours,
+        eventTime: locked.eventTime,
         receiptAmountReceived:
           targetType === "RECEIPT" || targetType === "INVOICE_RECEIPT"
-            ? source.totalAmount
+            ? locked.totalAmount
             : null,
         receiptPaymentMethod: null,
         receiptPaymentReference: null,
@@ -848,7 +876,7 @@ export async function createDocumentFromQuote(
     });
 
     await tx.documentItem.createMany({
-      data: source.items.map((item) => ({
+      data: locked.items.map((item) => ({
         documentId: draft.id,
         lineIndex: item.lineIndex,
         description: item.description,

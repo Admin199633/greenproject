@@ -5,6 +5,109 @@ Read this before starting any task.
 
 ---
 
+## [2026-06-17] Cancelled Document Payment Deletion Blocker Fixed
+
+FILES:
+- `src/app/(dashboard)/documents/[id]/page.tsx`
+- `src/app/api/payments/[id]/route.ts`
+- `src/services/payment.service.ts`
+- `src/services/payment.service.test.ts`
+- `PROJECT_SUMMARY_UPDATE.md`
+
+BLOCKER FIXED:
+- Cancelled receipts, invoices, and invoice receipts could still be mutated by
+  deleting preserved payments after cancellation.
+- The document detail page no longer renders `DeletePaymentButton` when
+  `doc.status === "CANCELLED"`.
+- `deletePayment()` now runs entirely through the existing DB transaction,
+  loads the payment with its document status/business id, rejects cancelled
+  documents before `payment.delete()`, and never calls
+  `recalculateDocumentStatus()` for cancelled documents.
+- Added a transactional document guard before deletion so if the document has
+  become `CANCELLED` before the delete guard, the delete is rejected and the
+  transaction rolls back without touching payments or document totals/status.
+- `DELETE /api/payments/[id]` now returns a clean Hebrew `409` for attempts to
+  delete a payment from a cancelled document and does not log expected client
+  errors via `console.error`.
+
+BEHAVIOR CHANGED:
+- Cancelled documents preserve their existing payments after cancellation:
+  users cannot delete those payments from the UI, and direct API calls are
+  rejected by the service.
+- For cancelled documents, `amountPaid`, `amountDue`, and `status` remain
+  unchanged because payment deletion and status recalculation are skipped.
+- Valid payment deletion for non-cancelled documents still deletes the payment,
+  recalculates document payment totals/status, and returns the payment snapshot
+  for existing audit logging.
+
+VERIFICATION:
+- `npm test` — 8/8 suites, 99/99 tests pass.
+- `npm run build` — passed. Prisma Client regenerated successfully. Build still
+  prints the pre-existing non-fatal `DYNAMIC_SERVER_USAGE` notices for
+  report/export API routes that use `headers`.
+
+---
+
+## [2026-06-17] Safe Cancel Issued Documents
+
+FILES:
+- `src/services/document.service.ts`
+- `src/app/api/documents/[id]/cancel/route.ts`
+- `src/app/api/documents/[id]/pdf/route.ts`
+- `src/app/(dashboard)/documents/[id]/page.tsx`
+- `src/lib/pdf/document-pdf.tsx`
+- `src/services/document-pdf.service.ts`
+- `src/services/document-pdf.service.test.ts`
+- `src/services/document.service.test.ts`
+- `PROJECT_SUMMARY_UPDATE.md`
+
+DONE:
+- Updated `cancelDocument()` so issued financial documents can be cancelled for
+  `QUOTE`, `RECEIPT`, `INVOICE`, and `INVOICE_RECEIPT`.
+- Cancellation remains business-scoped and transactionally guarded: the
+  document type/status/business id are checked before the transaction and
+  re-checked on the locked document inside the transaction.
+- Cancellation now performs a status-only update:
+  `status = CANCELLED`.
+- Removed the old payment/paid-state blockers from cancellation so receipts,
+  invoice receipts, paid invoices, and partially paid invoices can be cancelled
+  without deleting or changing existing payments.
+- Kept `CREDIT_NOTE` out of the cancellable document type set.
+- Tightened quote follow-up creation by re-checking quote business/type/status
+  inside the transaction before creating invoice, receipt, or invoice-receipt
+  drafts.
+- The document detail page now shows `בטל מסמך` for cancellable issued states
+  and keeps cancelled document PDFs downloadable when `issuedHash` exists.
+- Cancelled PDFs are allowed by the PDF guard and now render a clear
+  `מבוטל / CANCELLED` mark in both quote and non-quote PDF layouts.
+
+BEHAVIOR ADDED:
+- Issued quotes, receipts, invoices, and invoice receipts can be cancelled
+  without deleting the original document.
+- Paid / partially paid eligible documents can be cancelled while preserving
+  existing totals, payments, document number, issue date, snapshots, and
+  `issuedHash`.
+- Cancelled documents remain immutable through the existing edit/delete guards,
+  cannot receive payments through the existing payment guard, and cannot be
+  converted from quote because conversion requires `ISSUED`.
+- Cancelled documents remain visible with the existing `CANCELLED` status badge
+  and can still download PDFs with the cancelled mark.
+
+NOT CHANGED:
+- Existing issued documents are not edited or renumbered.
+- `DocumentCounter`, numbering uniqueness, duplicate conflict handling, audit
+  logging, issued hashes, and DB-level delete protections remain intact.
+- Draft documents still cannot produce PDFs.
+- Receipt and invoice-receipt PDFs still require preserved valid payment data.
+
+VERIFICATION:
+- `npm test` — 8/8 suites, 95/95 tests pass.
+- `npm run build` — passed. Prisma Client regenerated successfully. Build still
+  prints the pre-existing non-fatal `DYNAMIC_SERVER_USAGE` notices for
+  report/export API routes that use `headers`.
+
+---
+
 ## [2026-06-16] Numbering Rule — Numeric Start Advances By One
 
 FILES:

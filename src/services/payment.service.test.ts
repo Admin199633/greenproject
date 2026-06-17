@@ -54,9 +54,28 @@ function setupCreatePaymentTransaction(options?: {
 function setupDeletePaymentTransaction(options: {
   aggregatePaid: string;
   totalAmount: string;
+  documentStatus?: string;
+  documentType?: string;
 }) {
   const tx = {
     payment: {
+      findFirst: jest.fn().mockResolvedValue({
+        id: "pay-1",
+        businessId: "biz-1",
+        documentId: "doc-1",
+        customerId: "cust-1",
+        createdByUserId: "user-1",
+        amount: new Prisma.Decimal("30"),
+        method: "cash",
+        paymentDate: new Date("2026-04-09"),
+        reference: null,
+        notes: null,
+        document: {
+          businessId: "biz-1",
+          status: options.documentStatus ?? "ISSUED",
+          type: options.documentType ?? "INVOICE",
+        },
+      }),
       delete: jest.fn().mockResolvedValue(undefined),
       aggregate: jest.fn().mockResolvedValue({
         _sum: {
@@ -65,6 +84,7 @@ function setupDeletePaymentTransaction(options: {
       }),
     },
     document: {
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       findUniqueOrThrow: jest.fn().mockResolvedValue({
         totalAmount: new Prisma.Decimal(options.totalAmount),
       }),
@@ -240,7 +260,6 @@ describe("payment.service", () => {
 
   describe("deletePayment and status recalculation", () => {
     it("recalculates to ISSUED when totalAmount is 0", async () => {
-      mockDb.payment.findFirst.mockResolvedValue({ id: "pay-1", documentId: "doc-1" });
       const tx = setupDeletePaymentTransaction({
         aggregatePaid: "10",
         totalAmount: "0",
@@ -259,7 +278,6 @@ describe("payment.service", () => {
     });
 
     it("recalculates to ISSUED when amountPaid is 0", async () => {
-      mockDb.payment.findFirst.mockResolvedValue({ id: "pay-1", documentId: "doc-1" });
       const tx = setupDeletePaymentTransaction({
         aggregatePaid: "0",
         totalAmount: "100",
@@ -278,7 +296,6 @@ describe("payment.service", () => {
     });
 
     it("recalculates to PARTIALLY_PAID when payment is partial", async () => {
-      mockDb.payment.findFirst.mockResolvedValue({ id: "pay-1", documentId: "doc-1" });
       const tx = setupDeletePaymentTransaction({
         aggregatePaid: "40",
         totalAmount: "100",
@@ -297,7 +314,6 @@ describe("payment.service", () => {
     });
 
     it("recalculates to PAID when amountPaid matches total", async () => {
-      mockDb.payment.findFirst.mockResolvedValue({ id: "pay-1", documentId: "doc-1" });
       const tx = setupDeletePaymentTransaction({
         aggregatePaid: "100",
         totalAmount: "100",
@@ -316,7 +332,6 @@ describe("payment.service", () => {
     });
 
     it("clamps amountPaid and amountDue safely when payments exceed total", async () => {
-      mockDb.payment.findFirst.mockResolvedValue({ id: "pay-1", documentId: "doc-1" });
       const tx = setupDeletePaymentTransaction({
         aggregatePaid: "150",
         totalAmount: "100",
@@ -332,6 +347,64 @@ describe("payment.service", () => {
           status: "PAID",
         },
       });
+    });
+
+    it.each([
+      ["RECEIPT", "receipt"],
+      ["INVOICE_RECEIPT", "invoice receipt"],
+    ])("cannot delete payment from CANCELLED %s", async (documentType) => {
+      const tx = setupDeletePaymentTransaction({
+        aggregatePaid: "30",
+        totalAmount: "100",
+        documentStatus: "CANCELLED",
+        documentType,
+      });
+
+      await expect(deletePayment("pay-1", "biz-1")).rejects.toThrow(
+        "Cannot delete payment from a cancelled document"
+      );
+
+      expect(tx.payment.delete).not.toHaveBeenCalled();
+      expect(tx.payment.aggregate).not.toHaveBeenCalled();
+      expect(tx.document.updateMany).not.toHaveBeenCalled();
+      expect(tx.document.findUniqueOrThrow).not.toHaveBeenCalled();
+      expect(tx.document.update).not.toHaveBeenCalled();
+    });
+
+    it("keeps cancelled document status, amountPaid, and amountDue unchanged when payment deletion is rejected", async () => {
+      const tx = setupDeletePaymentTransaction({
+        aggregatePaid: "0",
+        totalAmount: "117",
+        documentStatus: "CANCELLED",
+        documentType: "RECEIPT",
+      });
+
+      await expect(deletePayment("pay-1", "biz-1")).rejects.toThrow(
+        "Cannot delete payment from a cancelled document"
+      );
+
+      expect(tx.payment.delete).not.toHaveBeenCalled();
+      expect(tx.document.updateMany).not.toHaveBeenCalled();
+      expect(tx.document.update).not.toHaveBeenCalled();
+    });
+
+    it("does not delete payment if the document is cancelled before the transactional delete guard", async () => {
+      const tx = setupDeletePaymentTransaction({
+        aggregatePaid: "0",
+        totalAmount: "117",
+        documentStatus: "ISSUED",
+        documentType: "RECEIPT",
+      });
+      tx.document.updateMany.mockResolvedValue({ count: 0 });
+
+      await expect(deletePayment("pay-1", "biz-1")).rejects.toThrow(
+        "Cannot delete payment from a cancelled document"
+      );
+
+      expect(tx.payment.delete).not.toHaveBeenCalled();
+      expect(tx.payment.aggregate).not.toHaveBeenCalled();
+      expect(tx.document.findUniqueOrThrow).not.toHaveBeenCalled();
+      expect(tx.document.update).not.toHaveBeenCalled();
     });
   });
 });

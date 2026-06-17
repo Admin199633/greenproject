@@ -7,11 +7,9 @@ type RouteCtx = { params: Promise<{ id: string }> };
 
 const CLIENT_ERRORS = [
   "Draft documents cannot be cancelled",
-  "Partially paid documents cannot be cancelled",
-  "Paid documents cannot be cancelled",
   "Document is already cancelled",
+  "Document type cannot be cancelled",
   "Only issued documents can be cancelled",
-  "Documents with payments cannot be cancelled",
 ];
 
 export async function POST(_req: Request, { params }: RouteCtx) {

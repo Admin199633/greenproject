@@ -30,12 +30,6 @@ export async function GET(_req: Request, { params }: RouteCtx) {
           { status: 400 }
         );
       }
-      if (message === "CANCELLED_PDF_NOT_ALLOWED") {
-        return NextResponse.json(
-          { error: "לא ניתן להפיק PDF למסמך מבוטל" },
-          { status: 400 }
-        );
-      }
       if (message === "RECEIPT_PAYMENT_REQUIRED") {
         return NextResponse.json(
           { error: "לא ניתן להפיק קבלה ללא תשלום רשום" },

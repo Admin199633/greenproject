@@ -9,6 +9,7 @@ jest.mock("@/lib/db", () => ({
 import {
   cancelDocument,
   createCreditNoteFromDocument,
+  createDocumentFromQuote,
   deleteDraft,
   duplicateDocument,
   issueDraft,
@@ -707,25 +708,63 @@ describe("document.service", () => {
   });
 
   describe("cancelDocument", () => {
-    it("can cancel only an issued document with amountPaid = 0", async () => {
+    function setupCancelTransaction({
+      type,
+      status = "ISSUED",
+      businessId = "biz-1",
+    }: {
+      type: "QUOTE" | "RECEIPT" | "INVOICE" | "INVOICE_RECEIPT";
+      status?: "ISSUED" | "PARTIALLY_PAID" | "PAID";
+      businessId?: string;
+    }) {
       const tx = {
         document: {
           findUniqueOrThrow: jest.fn().mockResolvedValue({
-            status: "ISSUED",
-            amountPaid: decimal("0"),
+            businessId,
+            type,
+            status,
           }),
           update: jest.fn().mockResolvedValue({
             id: "doc-1",
             status: "CANCELLED",
           }),
         },
+        documentCounter: {
+          upsert: jest.fn(),
+          update: jest.fn(),
+        },
       };
 
       mockDb.document.findFirst.mockResolvedValue({
-        status: "ISSUED",
-        amountPaid: decimal("0"),
+        type,
+        status,
       });
       mockDb.$transaction.mockImplementation(async (callback) => callback(tx as never));
+
+      return tx;
+    }
+
+    it.each(["QUOTE", "RECEIPT", "INVOICE", "INVOICE_RECEIPT"] as const)(
+      "issued %s can be cancelled",
+      async (type) => {
+        const tx = setupCancelTransaction({ type });
+
+        const result = await cancelDocument("doc-1", "biz-1");
+
+        expect(result).toEqual({ id: "doc-1", status: "CANCELLED" });
+        expect(tx.document.update).toHaveBeenCalledWith({
+          where: { id: "doc-1" },
+          data: { status: "CANCELLED" },
+        });
+      }
+    );
+
+    it.each([
+      ["RECEIPT", "PAID"],
+      ["INVOICE", "PARTIALLY_PAID"],
+      ["INVOICE_RECEIPT", "PAID"],
+    ] as const)("can cancel %s documents in %s status", async (type, status) => {
+      const tx = setupCancelTransaction({ type, status });
 
       const result = await cancelDocument("doc-1", "biz-1");
 
@@ -738,52 +777,44 @@ describe("document.service", () => {
 
     it.each([
       ["DRAFT", "Draft documents cannot be cancelled"],
-      ["PARTIALLY_PAID", "Partially paid documents cannot be cancelled"],
-      ["PAID", "Paid documents cannot be cancelled"],
       ["CANCELLED", "Document is already cancelled"],
+      ["DELETED", "Only issued documents can be cancelled"],
     ])("cannot cancel %s documents", async (status, message) => {
       mockDb.document.findFirst.mockResolvedValue({
+        type: "INVOICE",
         status,
-        amountPaid: decimal("0"),
       });
 
       await expect(cancelDocument("doc-1", "biz-1")).rejects.toThrow(message);
       expect(mockDb.$transaction).not.toHaveBeenCalled();
     });
 
-    it("cannot cancel documents with payments", async () => {
+    it("does not allow credit notes to be cancelled", async () => {
       mockDb.document.findFirst.mockResolvedValue({
+        type: "CREDIT_NOTE",
         status: "ISSUED",
-        amountPaid: decimal("5"),
       });
 
       await expect(cancelDocument("doc-1", "biz-1")).rejects.toThrow(
-        "Documents with payments cannot be cancelled"
+        "Document type cannot be cancelled"
       );
+      expect(mockDb.$transaction).not.toHaveBeenCalled();
     });
 
-    it("cancel changes only status to CANCELLED", async () => {
-      const tx = {
-        document: {
-          findUniqueOrThrow: jest.fn().mockResolvedValue({
-            status: "ISSUED",
-            amountPaid: decimal("0"),
-            number: "INV-0001",
-            totalAmount: decimal("117"),
-            customerName: "Acme",
-          }),
-          update: jest.fn().mockResolvedValue({
-            id: "doc-1",
-            status: "CANCELLED",
-          }),
-        },
-      };
-
-      mockDb.document.findFirst.mockResolvedValue({
-        status: "ISSUED",
-        amountPaid: decimal("0"),
+    it("keeps the transaction business-scoped", async () => {
+      const tx = setupCancelTransaction({
+        type: "INVOICE",
+        businessId: "other-biz",
       });
-      mockDb.$transaction.mockImplementation(async (callback) => callback(tx as never));
+
+      await expect(cancelDocument("doc-1", "biz-1")).rejects.toThrow(
+        "Document not found"
+      );
+      expect(tx.document.update).not.toHaveBeenCalled();
+    });
+
+    it("cancel changes only status and does not delete or renumber", async () => {
+      const tx = setupCancelTransaction({ type: "INVOICE" });
 
       await cancelDocument("doc-1", "biz-1");
 
@@ -793,6 +824,52 @@ describe("document.service", () => {
       });
       const updateData = tx.document.update.mock.calls[0][0].data;
       expect(Object.keys(updateData)).toEqual(["status"]);
+      expect(mockDb.document.delete).not.toHaveBeenCalled();
+      expect(tx.documentCounter.upsert).not.toHaveBeenCalled();
+      expect(tx.documentCounter.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("createDocumentFromQuote", () => {
+    it("does not convert a cancelled quote", async () => {
+      mockDb.document.findFirst.mockResolvedValue({
+        type: "QUOTE",
+        status: "CANCELLED",
+      });
+
+      await expect(
+        createDocumentFromQuote("quote-1", "biz-1", "INVOICE")
+      ).rejects.toThrow("Only issued quotes can create follow-up documents");
+      expect(mockDb.$transaction).not.toHaveBeenCalled();
+    });
+
+    it("re-checks quote status inside the transaction before conversion", async () => {
+      const tx = {
+        document: {
+          findUniqueOrThrow: jest.fn().mockResolvedValue({
+            businessId: "biz-1",
+            type: "QUOTE",
+            status: "CANCELLED",
+            items: [],
+          }),
+          create: jest.fn(),
+        },
+        documentItem: {
+          createMany: jest.fn(),
+        },
+      };
+
+      mockDb.document.findFirst.mockResolvedValue({
+        type: "QUOTE",
+        status: "ISSUED",
+      });
+      mockDb.$transaction.mockImplementation(async (callback) => callback(tx as never));
+
+      await expect(
+        createDocumentFromQuote("quote-1", "biz-1", "INVOICE")
+      ).rejects.toThrow("Only issued quotes can create follow-up documents");
+      expect(tx.document.create).not.toHaveBeenCalled();
+      expect(tx.documentItem.createMany).not.toHaveBeenCalled();
     });
   });
 
